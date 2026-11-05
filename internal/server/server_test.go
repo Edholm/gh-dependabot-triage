@@ -142,6 +142,32 @@ func TestServer_Index_RendersSortedRows(t *testing.T) {
 	assert.Assert(t, strings.Contains(body, "&lt;b&gt;left-pad&lt;/b&gt;"))
 }
 
+func TestServer_Index_ShowsDescriptionOnTitleHover(t *testing.T) {
+	t.Parallel()
+	lister := &fakeLister{prs: []ghclient.PullRequest{
+		{
+			Repository: "acme/api", Number: 1, Title: "described", URL: "https://github.com/acme/api/pull/1",
+			Description: "Bumps <script>lib</script>.\n\n\n\nRelease notes",
+		},
+		{Repository: "acme/web", Number: 2, Title: "undescribed", URL: "https://github.com/acme/web/pull/2"},
+	}}
+	srv := newTestServer(t, lister)
+	assert.NilError(t, srv.Refresh(context.Background()))
+
+	body := index(t, newTestHandler(t, srv))
+
+	described := `<a href="https://github.com/acme/api/pull/1" title="Bumps &lt;script&gt;lib&lt;/script&gt;.` +
+		"\n\nRelease notes\""
+	assert.Assert(t, strings.Contains(body, described), "described link is missing its tooltip:\n%s", body)
+	assert.Assert(t, !strings.Contains(body, "<script>lib"), "descriptions must be HTML-escaped")
+	assert.Assert(
+		t,
+		strings.Contains(body, `<a href="https://github.com/acme/web/pull/2" target="_blank"`),
+		"a pull request without a description must not get a tooltip:\n%s",
+		body,
+	)
+}
+
 func TestServer_Index_SortsByRequestedColumn(t *testing.T) {
 	t.Parallel()
 	lister := &fakeLister{prs: []ghclient.PullRequest{

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -92,6 +93,45 @@ func TestNewRows_SplitsRepositoryIntoOwnerAndName(t *testing.T) {
 	assert.Equal(t, len(rows), 2)
 	assert.DeepEqual(t, []string{rows[0].Repository, rows[0].Owner, rows[0].Name}, []string{"acme/api", "acme", "api"})
 	assert.DeepEqual(t, []string{rows[1].Repository, rows[1].Owner, rows[1].Name}, []string{"no-owner", "", "no-owner"})
+}
+
+func TestTooltip(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name string
+		text string
+		want string
+	}{
+		{"empty", "", ""},
+		{"blank", " \n\t\n ", ""},
+		{"short text is unchanged", "Bumps lib.\nRelease notes", "Bumps lib.\nRelease notes"},
+		{"surrounding whitespace is trimmed", "\n  Bumps lib.  \n\n", "Bumps lib."},
+		{"runs of blank lines collapse", "one\n\n\n\n\ntwo\n \nthree", "one\n\ntwo\n\nthree"},
+		{"carriage returns are dropped", "one\r\ntwo\r\n", "one\ntwo"},
+		{
+			"long text is cut",
+			strings.Repeat("a", maxTooltipRunes+1),
+			strings.Repeat("a", maxTooltipRunes) + "…",
+		},
+		{"text at the limit is unchanged", strings.Repeat("a", maxTooltipRunes), strings.Repeat("a", maxTooltipRunes)},
+		{
+			"runes are not split",
+			strings.Repeat("å", maxTooltipRunes+1),
+			strings.Repeat("å", maxTooltipRunes) + "…",
+		},
+		{
+			"whitespace before the cut is dropped",
+			strings.Repeat("a", maxTooltipRunes-1) + " bcd",
+			strings.Repeat("a", maxTooltipRunes-1) + "…",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tooltip(tt.text); got != tt.want {
+				t.Errorf("tooltip(%q) = %q, want %q", tt.text, got, tt.want)
+			}
+		})
+	}
 }
 
 func TestExtraBadges(t *testing.T) {

@@ -6,7 +6,8 @@ directly or through a team.
 
 For each pull request the table shows the repository, title, age, review
 decision, merge status (draft, conflicts, behind, blocked, ready, auto-merge,
-merge queue) and the combined CI state.
+merge queue) and the combined CI state. Hovering a title shows the start of the
+pull request description.
 
 ## Install
 

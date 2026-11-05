@@ -55,11 +55,13 @@ type PullRequest struct {
 	Repository string
 	Number     int
 	Title      string
-	URL        string
-	Author     string
-	Draft      bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	// Description is the pull request body as plain text, with its markup stripped. It can be long.
+	Description string
+	URL         string
+	Author      string
+	Draft       bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 
 	ReviewDecision ReviewDecision
 	MergeState     MergeState

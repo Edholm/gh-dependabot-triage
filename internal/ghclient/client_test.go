@@ -57,6 +57,7 @@ func TestClient_ListReviewRequested(t *testing.T) {
 	assert.Equal(t, queued.Repository, "acme/api")
 	assert.Equal(t, queued.Number, 12)
 	assert.Equal(t, queued.Author, "dependabot")
+	assert.Equal(t, queued.Description, "Bumps example.com/lib from 1.0.0 to 1.1.0.\n\nRelease notes\nFixes a bug.")
 	assert.Equal(t, queued.ReviewDecision, ghclient.ReviewRequired)
 	assert.Equal(t, queued.MergeState, ghclient.MergeStateBlocked)
 	assert.Equal(t, queued.CI, ghclient.CheckSuccess)
@@ -68,6 +69,7 @@ func TestClient_ListReviewRequested(t *testing.T) {
 	draft := got[1]
 	assert.Equal(t, draft.Repository, "acme/web")
 	assert.Assert(t, draft.Draft)
+	assert.Equal(t, draft.Description, "", "a pull request without a body has no description")
 	assert.Equal(t, draft.CI, ghclient.CheckState(""), "a null status check rollup means no CI")
 	assert.Equal(t, draft.ReviewDecision, ghclient.ReviewDecision(""))
 	assert.Equal(t, draft.MergeState, ghclient.MergeStateUnknown)

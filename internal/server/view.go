@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/Edholm/gh-dependabot-triage/internal/ghclient"
 )
@@ -38,6 +40,10 @@ const (
 	labelNoChecks = "– No checks"
 )
 
+// maxTooltipRunes bounds the description shown when hovering a pull request. Dependabot descriptions carry whole
+// release notes, and the page is rendered often, so the tooltip only keeps the start of them.
+const maxTooltipRunes = 1000
+
 // badge is a short colored label. The label always carries the meaning, color is only reinforcement.
 type badge struct {
 	Label string
@@ -52,13 +58,15 @@ type row struct {
 	Name       string
 	Number     int
 	Title      string
-	URL        string
-	Age        string
-	AgeTitle   string
-	Review     badge
-	Status     badge
-	Extras     []badge
-	CI         badge
+	// Description is the tooltip of the title link. It is empty when the pull request has no description.
+	Description string
+	URL         string
+	Age         string
+	AgeTitle    string
+	Review      badge
+	Status      badge
+	Extras      []badge
+	CI          badge
 }
 
 // newRows returns the rows of prs, sorted by o.
@@ -70,13 +78,14 @@ func newRows(now time.Time, prs []ghclient.PullRequest, o order) []row {
 			owner, name = "", pr.Repository
 		}
 		rows = append(rows, row{
-			Repository: pr.Repository,
-			Owner:      owner,
-			Name:       name,
-			Number:     pr.Number,
-			Title:      pr.Title,
-			URL:        pr.URL,
-			Age:        relativeAge(now, pr.CreatedAt),
+			Repository:  pr.Repository,
+			Owner:       owner,
+			Name:        name,
+			Number:      pr.Number,
+			Title:       pr.Title,
+			Description: tooltip(pr.Description),
+			URL:         pr.URL,
+			Age:         relativeAge(now, pr.CreatedAt),
 			AgeTitle: fmt.Sprintf(
 				"Opened %s, updated %s",
 				pr.CreatedAt.Format(time.DateTime),
@@ -89,6 +98,25 @@ func newRows(now time.Time, prs []ghclient.PullRequest, o order) []row {
 		})
 	}
 	return rows
+}
+
+// tooltip prepares text for a title attribute: it trims surrounding whitespace, collapses runs of blank lines and cuts
+// the text to maxTooltipRunes, marking the cut with an ellipsis.
+func tooltip(text string) string {
+	lines := strings.Split(strings.TrimSpace(text), "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		line = strings.TrimRight(line, " \t\r")
+		if line == "" && len(kept) > 0 && kept[len(kept)-1] == "" {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	text = strings.Join(kept, "\n")
+	if utf8.RuneCountInString(text) <= maxTooltipRunes {
+		return text
+	}
+	return strings.TrimRightFunc(string([]rune(text)[:maxTooltipRunes]), unicode.IsSpace) + "…"
 }
 
 func reviewBadge(decision ghclient.ReviewDecision) badge {

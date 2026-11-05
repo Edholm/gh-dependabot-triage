@@ -34,6 +34,7 @@ query($q: String!, $first: Int!, $after: String) {
       ... on PullRequest {
         number
         title
+        bodyText
         url
         isDraft
         createdAt
@@ -150,6 +151,7 @@ type searchResponse struct {
 type pullRequestNode struct {
 	Number           int
 	Title            string
+	BodyText         string
 	URL              string
 	IsDraft          bool
 	CreatedAt        time.Time
@@ -177,6 +179,7 @@ func (n pullRequestNode) pullRequest() PullRequest {
 		Repository:     n.Repository.NameWithOwner,
 		Number:         n.Number,
 		Title:          n.Title,
+		Description:    n.BodyText,
 		URL:            n.URL,
 		Author:         n.Author.Login,
 		Draft:          n.IsDraft,
