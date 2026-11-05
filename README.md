@@ -24,16 +24,18 @@ make install
 gh dependabot-triage
 ```
 
-This starts a server on a random port on `127.0.0.1` and opens it in your
-browser. Pull requests are fetched from GitHub in the background every minute
+This starts a server on port 7826 of `127.0.0.1` and opens it in your browser.
+The port is fixed because the browser keeps the page's settings (theme, fix
+prompt) per port; when it is taken, a random port is used instead, without those
+settings. Pull requests are fetched from GitHub in the background every minute
 (GitHub is slow to answer, so the page never waits for it), and the page
 refreshes itself in place while it is visible. Use the Refresh button to fetch
 right away. Stop the server with Ctrl-C.
 
-| Flag           | Description                                      |
-| -------------- | ------------------------------------------------ |
-| `--port`       | Port to listen on (default: a random free port). |
-| `--no-browser` | Print the URL instead of opening a browser.      |
+| Flag           | Description                                                  |
+| -------------- | ------------------------------------------------------------ |
+| `--port`       | Port to listen on (default: 7826, 0 for a random free port). |
+| `--no-browser` | Print the URL instead of opening a browser.                  |
 
 Authentication is taken from `gh`, so run `gh auth login` first if you have not
 already.
