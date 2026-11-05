@@ -69,8 +69,6 @@ range. A selection is kept while you sort and filter, in this tab only.
 
 While pull requests are selected, an island at the bottom of the page offers:
 
-- **Copy links** copies the links of the selected pull requests, grouped by CI
-  result.
 - **Copy fix prompt** copies a prompt asking an AI agent to fix CI of the
   selected pull requests, with their links. By default it asks for each fix to
   be folded into the Dependabot commit. Edit the prompt with the ✎ button next

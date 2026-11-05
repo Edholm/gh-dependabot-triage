@@ -224,22 +224,6 @@
 
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-  // linksReport lists the selected pull requests by CI result, in a form that can be handed to an AI agent. The CI
-  // result is the class of the CI badge, see ciBadge in view.go. Groups without pull requests are left out.
-  const linksReport = () => {
-    const chosen = rows().filter((row) => selected.has(row.dataset.key));
-    const groups = [
-      ["PRs with failing CI:", (row) => row.dataset.ci === "bad"],
-      ["PRs that pass CI:", (row) => row.dataset.ci === "good"],
-      ["PRs with CI running or without checks:", (row) => row.dataset.ci !== "bad" && row.dataset.ci !== "good"],
-    ];
-    return groups
-      .map(([heading, matches]) => [heading, ...chosen.filter(matches).map((row) => `* ${row.dataset.url}`)])
-      .filter((lines) => lines.length > 1)
-      .map((lines) => lines.join("\n"))
-      .join("\n");
-  };
-
   const copyText = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -361,15 +345,6 @@ Finish with a short summary of what you did to each pull request.`;
       { class: "island-bar" },
       el("span", { class: "count" }, `${plural(count, "pull request")} selected`),
       el("span", { class: "actions" },
-        el(
-          "button",
-          {
-            type: "button",
-            title: "Copy the links of the selected pull requests, grouped by CI result, to hand to an AI agent",
-            onclick: () => copy("links", linksReport()),
-          },
-          copyLabel("links", "Copy links"),
-        ),
         el(
           "span",
           { class: "split" },
