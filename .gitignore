@@ -1,6 +1,9 @@
 # Built extension binary.
 /gh-dependabot-triage
 
+# Local Claude Code configuration.
+/.claude/
+
 # Sage build artifacts.
 /.sage/bin/
 /.sage/tools/
