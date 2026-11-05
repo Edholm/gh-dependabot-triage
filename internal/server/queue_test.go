@@ -260,8 +260,10 @@ func TestQueue_Merge_FailsWhenApprovalFails(t *testing.T) {
 func TestQueue_Merge_ExplainsMissingWorkflowScope(t *testing.T) {
 	t.Parallel()
 	merger := &fakeMerger{
-		statuses: map[string][]ghclient.Status{"PR_1": {withState(clean("a"), ghclient.MergeStateBehind, ghclient.CheckSuccess)}},
-		failing:  map[string]error{"rebase PR_1 a": fmt.Errorf("rebase: %w", ghclient.ErrMissingWorkflowScope)},
+		statuses: map[string][]ghclient.Status{
+			"PR_1": {withState(clean("a"), ghclient.MergeStateBehind, ghclient.CheckSuccess)},
+		},
+		failing: map[string]error{"rebase PR_1 a": fmt.Errorf("rebase: %w", ghclient.ErrMissingWorkflowScope)},
 	}
 	q, _ := startQueue(t, merger)
 
@@ -555,10 +557,20 @@ func TestServer_Index_RendersSelection(t *testing.T) {
 
 	body := index(t, newTestHandler(t, srv))
 
-	assert.Assert(t, strings.Contains(body, `data-key="acme/api#1" data-url="`+passing.URL+`" data-ci="good" data-passing>`), body)
+	assert.Assert(
+		t,
+		strings.Contains(body, `data-key="acme/api#1" data-url="`+passing.URL+`" data-ci="good" data-passing>`),
+		body,
+	)
 	assert.Assert(t, strings.Contains(body, `data-key="acme/api#2" data-url="`+failing.URL+`" data-ci="bad">`), body)
-	assert.Assert(t, strings.Contains(body, `data-key="acme/api#3" data-url="`+conflicting.URL+`" data-ci="good">`), body)
+	assert.Assert(
+		t,
+		strings.Contains(body, `data-key="acme/api#3" data-url="`+conflicting.URL+`" data-ci="good">`),
+		body,
+	)
 	assert.Assert(t, strings.Contains(body, `value="acme/api#1"`), body)
 	assert.Assert(t, strings.Contains(body, `data-select="passing"`), body)
+	assert.Assert(t, strings.Contains(body, `data-select="failing"`), body)
+	assert.Assert(t, strings.Contains(body, `class="prompt-dialog"`), body)
 	assert.Assert(t, strings.Contains(body, `class="island js-only"`), body)
 }

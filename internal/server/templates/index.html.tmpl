@@ -31,6 +31,7 @@
   <div class="selection-tools js-only" role="group" aria-label="Select pull requests">
     <span>Select</span>
     <button type="button" data-select="passing" title="Select every pull request shown with passing CI">Passing CI</button>
+    <button type="button" data-select="failing" title="Select every pull request shown with failing CI">Failing CI</button>
     <button type="button" data-select="all">All</button>
     <button type="button" data-select="none">None</button>
   </div>
@@ -72,6 +73,19 @@
   </main>
 
   <aside class="island js-only" aria-label="Selection and merge queue" hidden></aside>
+
+  <dialog class="prompt-dialog" aria-labelledby="prompt-dialog-title">
+    <form method="dialog">
+      <h2 id="prompt-dialog-title">AI fix prompt</h2>
+      <p><code>{links}</code> is replaced by the links of the selected pull requests, one per line. Without it, the links are added at the end. The prompt is saved in this browser.</p>
+      <textarea name="template" rows="14" spellcheck="false" aria-label="Prompt template"></textarea>
+      <div class="dialog-actions">
+        <button type="button" class="ghost" data-prompt="reset">Reset to default</button>
+        <button type="submit" value="cancel">Cancel</button>
+        <button type="submit" value="save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
 
   <footer>
     <a class="github" href="https://github.com/Edholm/gh-dependabot-triage" target="_blank" rel="noopener noreferrer" aria-label="Edholm/gh-dependabot-triage on GitHub" title="Edholm/gh-dependabot-triage on GitHub">

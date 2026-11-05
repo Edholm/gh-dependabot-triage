@@ -105,6 +105,8 @@
         select(all.map((row) => row.dataset.key), true);
       } else if (tool.dataset.select === "passing") {
         select(all.filter((row) => row.hasAttribute("data-passing")).map((row) => row.dataset.key), true);
+      } else if (tool.dataset.select === "failing") {
+        select(all.filter((row) => row.dataset.ci === "bad").map((row) => row.dataset.key), true);
       }
     }
   });
@@ -250,18 +252,93 @@
     }
   };
 
-  let copyLabel = "Copy links";
+  // --- Fix prompt --------------------------------------------------------------------------------------------------
+
+  const promptKey = "fixPrompt";
+  const linksPlaceholder = "{links}";
+  const defaultPrompt = `These Dependabot pull requests fail CI. Fix them:
+
+${linksPlaceholder}
+
+For each pull request:
+- Check out its branch and find out from the logs of the failing checks why CI fails.
+- Make the smallest change that makes CI pass. Adapt the code to the updated dependency; do not pin, downgrade or revert it.
+- Fold the fix into the Dependabot commit (amend it) instead of adding a commit, so that the pull request stays a single commit, then force-push with --force-with-lease.
+- If the failure is unrelated to the update, or fixing it needs a decision from me, leave the pull request as it is and tell me why.
+
+Finish with a short summary of what you did to each pull request.`;
+
+  // The template is a per-browser preference. Without storage the default is used and edits last for this page only.
+  let promptTemplate = defaultPrompt;
+  try {
+    promptTemplate = localStorage.getItem(promptKey) ?? defaultPrompt;
+  } catch {
+    // Ignored: see above.
+  }
+
+  const savePromptTemplate = (template) => {
+    promptTemplate = template;
+    try {
+      if (template === defaultPrompt) {
+        localStorage.removeItem(promptKey);
+      } else {
+        localStorage.setItem(promptKey, template);
+      }
+    } catch {
+      // Ignored: see above.
+    }
+  };
+
+  // fixPrompt fills the template with the links of the selected pull requests, in the order the table shows them.
+  const fixPrompt = () => {
+    const links = rows()
+      .filter((row) => selected.has(row.dataset.key))
+      .map((row) => `- ${row.dataset.url}`)
+      .join("\n");
+    if (promptTemplate.includes(linksPlaceholder)) {
+      return promptTemplate.replaceAll(linksPlaceholder, links);
+    }
+    return `${promptTemplate.trimEnd()}\n\n${links}`;
+  };
+
+  const promptDialog = document.querySelector(".prompt-dialog");
+  const promptField = promptDialog?.querySelector("textarea");
+
+  const editPrompt = () => {
+    promptField.value = promptTemplate;
+    promptDialog.returnValue = "";
+    promptDialog.showModal();
+  };
+
+  // Saving on submit rather than on close, since close fires late, or not at all, in a page that is not shown.
+  promptDialog?.querySelector("form").addEventListener("submit", (event) => {
+    if (event.submitter?.value === "save") {
+      savePromptTemplate(promptField.value.trim() === "" ? defaultPrompt : promptField.value);
+    }
+  });
+
+  promptDialog?.querySelector("[data-prompt=reset]").addEventListener("click", () => {
+    promptField.value = defaultPrompt;
+    promptField.focus();
+  });
+
+  // --- Copying -----------------------------------------------------------------------------------------------------
+
+  // copied holds the feedback shown on the copy button that was used last, until it times out.
+  let copied = { button: "", label: "" };
   let copyTimer = null;
 
-  const copyLinks = async () => {
-    copyLabel = (await copyText(linksReport())) ? "Copied!" : "Copy failed";
+  const copy = async (button, text) => {
+    copied = { button, label: (await copyText(text)) ? "Copied!" : "Copy failed" };
     render();
     clearTimeout(copyTimer);
     copyTimer = setTimeout(() => {
-      copyLabel = "Copy links";
+      copied = { button: "", label: "" };
       render();
     }, 2000);
   };
+
+  const copyLabel = (button, label) => (copied.button === button ? copied.label : label);
 
   const selectionBar = () => {
     const count = selectedKeys().length;
@@ -278,9 +355,25 @@
           {
             type: "button",
             title: "Copy the links of the selected pull requests, grouped by CI result, to hand to an AI agent",
-            onclick: copyLinks,
+            onclick: () => copy("links", linksReport()),
           },
-          copyLabel,
+          copyLabel("links", "Copy links"),
+        ),
+        el(
+          "span",
+          { class: "split" },
+          el(
+            "button",
+            {
+              type: "button",
+              title: "Copy a prompt asking an AI agent to fix CI of the selected pull requests",
+              onclick: () => copy("prompt", fixPrompt()),
+            },
+            copyLabel("prompt", "Copy fix prompt"),
+          ),
+          promptDialog
+            ? el("button", { type: "button", "aria-label": "Edit the fix prompt", title: "Edit the fix prompt", onclick: editPrompt }, "✎")
+            : null,
         ),
         el("button", { type: "button", disabled: sending, onclick: () => enqueue("approve") }, "Approve"),
         el(

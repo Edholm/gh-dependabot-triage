@@ -420,7 +420,72 @@ body.has-island {
 
 .island-bar .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+/* A button with a smaller button attached to its right, like the fix prompt and its edit button. */
+.split {
+  display: inline-flex;
+}
+
+.split button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split button + button {
+  margin-left: -1px;
+  padding: 4px 8px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.prompt-dialog {
+  width: min(720px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+}
+
+.prompt-dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+.prompt-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.prompt-dialog p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.prompt-dialog textarea {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.prompt-dialog .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.prompt-dialog .dialog-actions .ghost {
+  margin-right: auto;
 }
 
 .island-error {

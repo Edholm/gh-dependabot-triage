@@ -61,12 +61,20 @@ that are equal in the sorted column stay ordered by repository and number.
 
 Tick pull requests to select them, or use the Select buttons above the table:
 "Passing CI" selects every pull request shown with passing CI that is not a
-draft, has no conflicts and is not already in a merge queue. Shift-click a box
-to select a range. A selection is kept while you sort and filter, in this tab
-only.
+draft, has no conflicts and is not already in a merge queue, and "Failing CI"
+selects every pull request shown with failing CI. Shift-click a box to select a
+range. A selection is kept while you sort and filter, in this tab only.
 
 While pull requests are selected, an island at the bottom of the page offers:
 
+- **Copy links** copies the links of the selected pull requests, grouped by CI
+  result.
+- **Copy fix prompt** copies a prompt asking an AI agent to fix CI of the
+  selected pull requests, with their links. By default it asks for each fix to
+  be folded into the Dependabot commit. Edit the prompt with the ✎ button next
+  to it: `{links}` in it is replaced by the links, one per line, and without it
+  the links are added at the end. The prompt is saved in your browser's local
+  storage.
 - **Approve** approves them.
 - **Approve & merge** approves all of them right away, then merges them one at a
   time per repository, in the order the table shows them. Pull requests of
@@ -80,8 +88,8 @@ A pull request fails, and the queue moves on to the next one, when CI fails, it
 has conflicts, it still needs a review after the approval, a merge fails twice,
 or it does not become mergeable within 30 minutes of its last rebase. The island
 lists the queue with the state of each pull request. Pull requests that are
-still waiting, including those waiting for CI, can be removed from it; one that is being
-approved, rebased or merged cannot.
+still waiting, including those waiting for CI, can be removed from it; one that
+is being approved, rebased or merged cannot.
 
 The queue runs in the server, so it keeps going when you close the page, but it
 stops when you stop the server.
