@@ -194,6 +194,26 @@ tbody tr:hover {
   line-height: 20px;
 }
 
+.row-merge {
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+td.actions {
+  text-align: right;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .num {
   color: var(--muted);
 }

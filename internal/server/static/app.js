@@ -102,6 +102,13 @@
       enqueue("rebase", [rebase.dataset.rebase]);
       return;
     }
+    const merge = event.target.closest("[data-merge]");
+    if (merge) {
+      if (!merge.disabled) {
+        enqueue("merge", [merge.dataset.merge]);
+      }
+      return;
+    }
     const tool = event.target.closest("[data-select]");
     if (tool) {
       const all = rows();
@@ -458,7 +465,20 @@ Finish with a short summary of what you did to each pull request.`;
     );
   };
 
+  // syncRowButtons disables the approve and merge button of every pull request that is in the queue, until it has
+  // failed and can be tried again. The table is only updated a while after the queue has done its work, and is
+  // replaced as a whole, so this is derived from the queue each time rather than set on the button once.
+  const syncRowButtons = () => {
+    const active = new Set(queue.items.filter((item) => item.step !== "failed").map((item) => item.key));
+    for (const button of document.querySelectorAll("[data-merge]")) {
+      const queued = active.has(button.dataset.merge);
+      button.disabled = queued;
+      button.textContent = queued ? "Queued…" : "Approve & merge";
+    }
+  };
+
   const render = () => {
+    syncRowButtons();
     if (!island) {
       return;
     }

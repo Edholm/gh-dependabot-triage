@@ -184,3 +184,21 @@ func TestNewRows_Behind(t *testing.T) {
 	}
 	assert.DeepEqual(t, got, map[int]bool{1: true, 2: false, 3: false})
 }
+
+func TestNewRows_Mergeable(t *testing.T) {
+	t.Parallel()
+	ready := ghclient.PullRequest{Repository: "acme/api", Number: 1, MergeState: ghclient.MergeStateBlocked}
+	draft := ghclient.PullRequest{Repository: "acme/api", Number: 2, Draft: true}
+	conflicts := ghclient.PullRequest{Repository: "acme/api", Number: 3, MergeState: ghclient.MergeStateDirty}
+	queued := ghclient.PullRequest{
+		Repository: "acme/api", Number: 4, MergeQueue: &ghclient.MergeQueueEntry{Position: 1},
+	}
+
+	rows := newRows(time.Now(), []ghclient.PullRequest{ready, draft, conflicts, queued}, pageQuery{})
+
+	got := make(map[int]bool)
+	for _, r := range rows {
+		got[r.Number] = r.Mergeable
+	}
+	assert.DeepEqual(t, got, map[int]bool{1: true, 2: false, 3: false, 4: false})
+}

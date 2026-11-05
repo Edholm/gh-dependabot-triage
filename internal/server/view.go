@@ -77,6 +77,9 @@ type row struct {
 	Passing bool
 	// Behind reports whether the pull request is behind its base branch and can be rebased.
 	Behind bool
+	// Mergeable reports whether the pull request can be sent to the queue to be approved and merged: it is not a draft,
+	// has no conflicts and is not in the merge queue already.
+	Mergeable bool
 }
 
 // newRows returns the rows of the pull requests of prs that q shows, sorted by q.
@@ -109,6 +112,10 @@ func newRows(now time.Time, prs []ghclient.PullRequest, q pageQuery) []row {
 			CI:      ciBadge(pr.CI),
 			Passing: passing(pr),
 			Behind:  pr.MergeState == ghclient.MergeStateBehind && !pr.Draft,
+			Mergeable: !pr.Draft &&
+				pr.MergeState != ghclient.MergeStateDirty &&
+				pr.MergeState != ghclient.MergeStateDraft &&
+				pr.MergeQueue == nil,
 		})
 	}
 	return rows

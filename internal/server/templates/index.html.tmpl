@@ -44,6 +44,7 @@
         {{range .Headers}}
         <th{{if .Sort}} aria-sort="{{.Sort}}"{{end}}><a href="{{.Href}}">{{.Label}}{{if .Arrow}} <span class="arrow" aria-hidden="true">{{.Arrow}}</span>{{end}}</a></th>
         {{end}}
+        <th class="actions js-only"><span class="visually-hidden">Actions</span></th>
       </tr>
     </thead>
     <tbody>
@@ -60,6 +61,7 @@
           {{range .Extras}}<span class="badge {{.Class}}">{{.Label}}</span>{{end}}
         </td>
         <td><span class="badge {{.CI.Class}}">{{.CI.Label}}</span></td>
+        <td class="actions js-only">{{if .Mergeable}}<button type="button" class="row-merge" data-merge="{{.Key}}" title="Approve and merge {{.Key}}">Approve &amp; merge</button>{{end}}</td>
       </tr>
       {{end}}
     </tbody>
