@@ -33,7 +33,7 @@ type fakeLister struct {
 	release chan struct{}
 }
 
-func (f *fakeLister) ListReviewRequested(ctx context.Context) ([]ghclient.PullRequest, error) {
+func (f *fakeLister) ListPullRequests(ctx context.Context) ([]ghclient.PullRequest, error) {
 	f.mu.Lock()
 	f.calls++
 	prs, err := f.prs, f.err

@@ -16,7 +16,8 @@ import (
 )
 
 // fakeDoer answers each request with the next canned response and records the variables it was called with. If errs
-// is not empty, each request first consumes the next error; a nil error lets the request succeed.
+// is not empty, each request first consumes the next error; a nil error lets the request succeed. Once the responses
+// run out, it answers with an empty search result.
 type fakeDoer struct {
 	responses []string
 	errs      []error
@@ -32,8 +33,11 @@ func (f *fakeDoer) DoWithContext(_ context.Context, _ string, variables map[stri
 			return err
 		}
 	}
-	next := f.responses[0]
-	f.responses = f.responses[1:]
+	next := `{"search": {"pageInfo": {"hasNextPage": false}, "nodes": []}}`
+	if len(f.responses) > 0 {
+		next = f.responses[0]
+		f.responses = f.responses[1:]
+	}
 	return json.Unmarshal([]byte(next), response)
 }
 
@@ -44,11 +48,11 @@ func readFixture(t *testing.T, name string) string {
 	return string(data)
 }
 
-func TestClient_ListReviewRequested(t *testing.T) {
+func TestClient_ListPullRequests(t *testing.T) {
 	t.Parallel()
 	doer := &fakeDoer{responses: []string{readFixture(t, "page1.json"), readFixture(t, "page2.json")}}
 
-	got, err := ghclient.New(doer).ListReviewRequested(context.Background())
+	got, err := ghclient.New(doer).ListPullRequests(context.Background())
 
 	assert.NilError(t, err)
 	assert.Equal(t, len(got), 2, "non-dependabot and author-less pull requests must be dropped")
@@ -77,36 +81,58 @@ func TestClient_ListReviewRequested(t *testing.T) {
 	assert.Assert(t, draft.MergeQueue == nil)
 }
 
-func TestClient_ListReviewRequested_PaginatesAndFiltersByAuthor(t *testing.T) {
+func TestClient_ListPullRequests_PaginatesAndFiltersByAuthor(t *testing.T) {
 	t.Parallel()
 	doer := &fakeDoer{responses: []string{readFixture(t, "page1.json"), readFixture(t, "page2.json")}}
 
-	_, err := ghclient.New(doer).ListReviewRequested(context.Background())
+	_, err := ghclient.New(doer).ListPullRequests(context.Background())
 
 	assert.NilError(t, err)
-	assert.Equal(t, len(doer.calls), 2)
-	for _, call := range doer.calls {
+	assert.Equal(t, len(doer.calls), 3, "two pages of review requests, then one of reviewed pull requests")
+	for i, call := range doer.calls {
 		query, ok := call["q"].(string)
 		assert.Assert(t, ok)
-		for _, qualifier := range []string{"is:pr", "is:open", "author:app/dependabot", "review-requested:@me"} {
+		reviewer := "review-requested:@me"
+		if i == 2 {
+			reviewer = "reviewed-by:@me"
+		}
+		for _, qualifier := range []string{"is:pr", "is:open", "author:app/dependabot", reviewer} {
 			assert.Assert(t, strings.Contains(query, qualifier), "query %q is missing %q", query, qualifier)
 		}
 	}
 	assert.Assert(t, doer.calls[0]["after"].(*string) == nil, "first page must not send a cursor")
 	assert.Equal(t, *doer.calls[1]["after"].(*string), "cursor-1")
+	assert.Assert(t, doer.calls[2]["after"].(*string) == nil, "a new search must start without a cursor")
 }
 
-func TestClient_ListReviewRequested_Error(t *testing.T) {
+func TestClient_ListPullRequests_IncludesReviewedPullRequestsOnce(t *testing.T) {
+	t.Parallel()
+	// The pull request of page 2 is both requested and reviewed, the one of page 1 only reviewed.
+	doer := &fakeDoer{responses: []string{
+		readFixture(t, "page2.json"),
+		strings.Replace(readFixture(t, "page1.json"), `"hasNextPage": true`, `"hasNextPage": false`, 1),
+		readFixture(t, "page2.json"),
+	}}
+
+	got, err := ghclient.New(doer).ListPullRequests(context.Background())
+
+	assert.NilError(t, err)
+	assert.Equal(t, len(got), 2)
+	assert.Equal(t, got[0].Repository, "acme/web")
+	assert.Equal(t, got[1].Repository, "acme/api")
+}
+
+func TestClient_ListPullRequests_Error(t *testing.T) {
 	t.Parallel()
 	doer := &fakeDoer{errs: []error{errors.New("boom")}}
 
-	got, err := ghclient.New(doer).ListReviewRequested(context.Background())
+	got, err := ghclient.New(doer).ListPullRequests(context.Background())
 
 	assert.ErrorContains(t, err, "search pull requests: boom")
 	assert.Assert(t, got == nil)
 }
 
-func TestClient_ListReviewRequested_RetriesTransientErrors(t *testing.T) {
+func TestClient_ListPullRequests_RetriesTransientErrors(t *testing.T) {
 	t.Parallel()
 	badGateway := &api.HTTPError{StatusCode: http.StatusBadGateway}
 	doer := &fakeDoer{
@@ -114,41 +140,41 @@ func TestClient_ListReviewRequested_RetriesTransientErrors(t *testing.T) {
 		errs:      []error{badGateway, badGateway},
 	}
 
-	got, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Millisecond)).ListReviewRequested(context.Background())
+	got, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Millisecond)).ListPullRequests(context.Background())
 
 	assert.NilError(t, err)
 	assert.Equal(t, len(got), 1)
-	assert.Equal(t, len(doer.calls), 3)
+	assert.Equal(t, len(doer.calls), 4, "three attempts at the first search, then the second search")
 }
 
-func TestClient_ListReviewRequested_GivesUpOnPersistentTransientErrors(t *testing.T) {
+func TestClient_ListPullRequests_GivesUpOnPersistentTransientErrors(t *testing.T) {
 	t.Parallel()
 	badGateway := &api.HTTPError{StatusCode: http.StatusBadGateway, Message: "Bad Gateway"}
 	doer := &fakeDoer{errs: []error{badGateway, badGateway, badGateway, badGateway}}
 
-	_, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Millisecond)).ListReviewRequested(context.Background())
+	_, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Millisecond)).ListPullRequests(context.Background())
 
 	assert.ErrorContains(t, err, "search pull requests")
 	assert.Equal(t, len(doer.calls), 3, "must stop after the maximum number of attempts")
 }
 
-func TestClient_ListReviewRequested_DoesNotRetryPermanentErrors(t *testing.T) {
+func TestClient_ListPullRequests_DoesNotRetryPermanentErrors(t *testing.T) {
 	t.Parallel()
 	doer := &fakeDoer{errs: []error{&api.HTTPError{StatusCode: http.StatusUnauthorized}}}
 
-	_, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Millisecond)).ListReviewRequested(context.Background())
+	_, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Millisecond)).ListPullRequests(context.Background())
 
 	assert.ErrorContains(t, err, "search pull requests")
 	assert.Equal(t, len(doer.calls), 1)
 }
 
-func TestClient_ListReviewRequested_StopsRetryingWhenContextIsCanceled(t *testing.T) {
+func TestClient_ListPullRequests_StopsRetryingWhenContextIsCanceled(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	doer := &fakeDoer{errs: []error{&api.HTTPError{StatusCode: http.StatusBadGateway}}}
 
-	_, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Hour)).ListReviewRequested(ctx)
+	_, err := ghclient.New(doer, ghclient.WithRetryDelay(time.Hour)).ListPullRequests(ctx)
 
 	assert.ErrorContains(t, err, "context canceled")
 	assert.Equal(t, len(doer.calls), 1)

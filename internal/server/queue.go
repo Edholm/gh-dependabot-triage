@@ -129,6 +129,8 @@ type queue struct {
 	items []*queueItem
 	// merging holds the repositories that have a merge worker running.
 	merging map[string]bool
+	// changes counts the approvals and merges. The page refreshes the table whenever it grows.
+	changes int
 }
 
 func newQueue(logger *slog.Logger, merger Merger, changed func()) *queue {
@@ -224,6 +226,15 @@ func (q *queue) clearFinished() {
 	q.items = slices.DeleteFunc(q.items, func(item *queueItem) bool { return item.step.finished() })
 }
 
+// notifyChanged reports that pull requests were approved or merged, and then records it. In that order, a page that
+// sees the change also sees that the server is fetching the new state of the pull requests.
+func (q *queue) notifyChanged() {
+	q.changed()
+	q.mu.Lock()
+	q.changes++
+	q.mu.Unlock()
+}
+
 // set moves item to step s with message.
 func (q *queue) set(item *queueItem, s step, message string) {
 	q.mu.Lock()
@@ -249,7 +260,7 @@ func (q *queue) approveAll(ctx context.Context, items []*queueItem) {
 		item.step = stepApproved
 		q.mu.Unlock()
 	}
-	q.changed()
+	q.notifyChanged()
 }
 
 // approve approves item unless it is approved already. It reports whether item is approved, and fails item if it
@@ -277,17 +288,22 @@ func (q *queue) approve(ctx context.Context, item *queueItem) bool {
 func (q *queue) mergeAll(ctx context.Context, repo string) {
 	for ctx.Err() == nil {
 		// Approve everything queued so far up front, so that reviewers see it right away.
+		approved := false
 		for item := q.nextToApprove(repo); item != nil; item = q.nextToApprove(repo) {
 			if q.approve(ctx, item) {
 				q.set(item, stepQueued, "")
+				approved = true
 			}
+		}
+		if approved {
+			q.notifyChanged()
 		}
 		item := q.nextToMerge(repo)
 		if item == nil {
 			return
 		}
 		q.merge(ctx, item)
-		q.changed()
+		q.notifyChanged()
 	}
 }
 
@@ -476,6 +492,8 @@ type queueView struct {
 	Items []queueItemView `json:"items"`
 	// Busy reports whether the queue has unfinished work.
 	Busy bool `json:"busy"`
+	// Changes counts the approvals and merges, see queue.changes.
+	Changes int `json:"changes"`
 }
 
 type queueItemView struct {
@@ -498,7 +516,7 @@ type queueItemView struct {
 func (q *queue) view() queueView {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	v := queueView{Items: make([]queueItemView, 0, len(q.items))}
+	v := queueView{Items: make([]queueItemView, 0, len(q.items)), Changes: q.changes}
 	for _, item := range q.items {
 		b := item.step.badge()
 		v.Items = append(v.Items, queueItemView{

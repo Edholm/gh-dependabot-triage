@@ -38,7 +38,7 @@ const (
 
 // PullRequestLister lists the pull requests to show.
 type PullRequestLister interface {
-	ListReviewRequested(ctx context.Context) ([]ghclient.PullRequest, error)
+	ListPullRequests(ctx context.Context) ([]ghclient.PullRequest, error)
 }
 
 // Server serves the pull request page.

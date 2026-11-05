@@ -175,7 +175,8 @@ func TestQueue_Merge_RebasesWhenBehindAndWaitsForCI(t *testing.T) {
 	v := waitIdle(t, q)
 	assert.DeepEqual(t, steps(v), map[string]string{"acme/api#1": "merged"})
 	assert.DeepEqual(t, merger.recorded(), []string{"approve PR_1", "rebase PR_1 a", "merge PR_1 b"})
-	waitChanged(t, changed, 1)
+	// Once for the approval, once for the merge.
+	waitChanged(t, changed, 2)
 }
 
 func TestQueue_Merge_ApprovesAllThenMergesInOrderPerRepository(t *testing.T) {
@@ -329,6 +330,7 @@ func TestQueue_Approve(t *testing.T) {
 	})
 	assert.DeepEqual(t, merger.recorded(), []string{"approve PR_1"})
 	waitChanged(t, changed, 1)
+	assert.Equal(t, q.view().Changes, 1, "the page must learn that it should refresh")
 }
 
 func TestQueue_SkipsPullRequestsItIsWorkingOn(t *testing.T) {

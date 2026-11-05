@@ -48,7 +48,7 @@ func (s *Server) Refresh(ctx context.Context) error {
 
 	fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
-	prs, err := s.lister.ListReviewRequested(fetchCtx)
+	prs, err := s.lister.ListPullRequests(fetchCtx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

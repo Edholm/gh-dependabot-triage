@@ -111,7 +111,7 @@
 
   // --- Queue -------------------------------------------------------------------------------------------------------
 
-  let queue = { items: [], busy: false };
+  let queue = { items: [], busy: false, changes: 0 };
   let sending = false;
   let error = "";
   let queueOpen = true;
@@ -159,20 +159,28 @@
     if (await send("/queue", { action, pullRequests: keys })) {
       queueOpen = true;
       select(keys, false);
+      // Follow the new work closely, so that the table updates as soon as the approvals are in.
+      scheduleQueuePoll(queueBusyMs);
     }
   };
 
-  const finishedCount = (q) => q.items.filter((item) => item.finished).length;
-
   const setQueue = (next) => {
-    const finishedBefore = finishedCount(queue);
+    const changed = next.changes !== queue.changes;
     queue = next;
     // Approving and merging change the pull requests, and the server is fetching them again by now. Fetching the page
     // picks up that the server is busy, which makes it refresh quickly until the new state is in.
-    if (finishedCount(queue) > finishedBefore) {
+    if (changed) {
       refreshPage();
     }
     render();
+  };
+
+  let queueTimer = null;
+
+  // scheduleQueuePoll checks the queue after ms, replacing any check scheduled before.
+  const scheduleQueuePoll = (ms) => {
+    clearTimeout(queueTimer);
+    queueTimer = setTimeout(pollQueue, ms);
   };
 
   const pollQueue = async () => {
@@ -184,7 +192,7 @@
     } catch {
       // The server is gone or restarting; try again later.
     }
-    setTimeout(pollQueue, queue.busy ? queueBusyMs : queueIdleMs);
+    scheduleQueuePoll(queue.busy ? queueBusyMs : queueIdleMs);
   };
 
   // --- Island ------------------------------------------------------------------------------------------------------

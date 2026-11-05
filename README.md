@@ -2,7 +2,8 @@
 
 A [GitHub CLI](https://cli.github.com) extension that opens a local web page
 listing every open Dependabot pull request you have been asked to review,
-directly or through a team.
+directly or through a team, or have reviewed already. Reviewed pull requests
+stay on the list so that you can still merge them after approving them.
 
 For each pull request the table shows the repository, title, age, review
 decision, merge status (draft, conflicts, behind, blocked, ready, auto-merge,

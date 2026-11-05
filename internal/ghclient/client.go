@@ -1,4 +1,4 @@
-// Package ghclient lists the Dependabot pull requests a user has been asked to review.
+// Package ghclient lists the Dependabot pull requests a user has been asked to review, and approves and merges them.
 package ghclient
 
 import (
@@ -12,9 +12,15 @@ import (
 )
 
 const (
-	// searchQuery selects open Dependabot pull requests where the viewer, or a team they belong to,
-	// is a requested reviewer.
-	searchQuery = "is:pr is:open archived:false author:app/dependabot review-requested:@me"
+	// searchBase selects open Dependabot pull requests. The searches below narrow it down.
+	searchBase = "is:pr is:open archived:false author:app/dependabot"
+	// reviewRequestedQuery selects the pull requests where the viewer, or a team they belong to, is a requested
+	// reviewer.
+	reviewRequestedQuery = searchBase + " review-requested:@me"
+	// reviewedQuery selects the pull requests the viewer has reviewed. Reviewing a pull request fulfills the review
+	// request, so without this search a pull request would vanish from the list as soon as it is approved, before it
+	// can be merged.
+	reviewedQuery = searchBase + " reviewed-by:@me"
 	// dependabotLogin is the GraphQL login of the Dependabot bot account.
 	dependabotLogin = "dependabot"
 	// pageSize is deliberately small: GitHub computes merge state for every pull request in a page, so large pages
@@ -81,14 +87,36 @@ func New(doer Doer, opts ...Option) *Client {
 	return c
 }
 
-// ListReviewRequested returns all open Dependabot pull requests that the authenticated user has been requested to
-// review, directly or through a team.
-func (c *Client) ListReviewRequested(ctx context.Context) ([]PullRequest, error) {
+// ListPullRequests returns all open Dependabot pull requests that the authenticated user has been requested to
+// review, directly or through a team, or has reviewed already. GitHub search has no "or" for qualifiers, so this
+// runs one search for each and merges their results.
+func (c *Client) ListPullRequests(ctx context.Context) ([]PullRequest, error) {
+	var result []PullRequest
+	seen := make(map[string]bool)
+	for _, query := range []string{reviewRequestedQuery, reviewedQuery} {
+		prs, err := c.search(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		for _, pr := range prs {
+			key := fmt.Sprintf("%s#%d", pr.Repository, pr.Number)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			result = append(result, pr)
+		}
+	}
+	return result, nil
+}
+
+// search returns all Dependabot pull requests that query finds.
+func (c *Client) search(ctx context.Context, query string) ([]PullRequest, error) {
 	var result []PullRequest
 	var after *string
 	for {
 		var response searchResponse
-		variables := map[string]any{"q": searchQuery, "first": pageSize, "after": after}
+		variables := map[string]any{"q": query, "first": pageSize, "after": after}
 		if err := c.do(ctx, listQuery, variables, &response); err != nil {
 			return nil, fmt.Errorf("search pull requests: %v", err)
 		}
