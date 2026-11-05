@@ -166,3 +166,18 @@ func TestRelativeAge(t *testing.T) {
 		})
 	}
 }
+
+func TestNewRows_Behind(t *testing.T) {
+	t.Parallel()
+	behind := ghclient.PullRequest{Repository: "acme/api", Number: 1, MergeState: ghclient.MergeStateBehind}
+	draft := ghclient.PullRequest{Repository: "acme/api", Number: 2, MergeState: ghclient.MergeStateBehind, Draft: true}
+	clean := ghclient.PullRequest{Repository: "acme/api", Number: 3, MergeState: ghclient.MergeStateClean}
+
+	rows := newRows(time.Now(), []ghclient.PullRequest{behind, draft, clean}, pageQuery{})
+
+	got := make(map[int]bool)
+	for _, r := range rows {
+		got[r.Number] = r.Behind
+	}
+	assert.DeepEqual(t, got, map[int]bool{1: true, 2: false, 3: false})
+}

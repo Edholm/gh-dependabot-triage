@@ -585,7 +585,10 @@ func TestServer_Index_RendersSelection(t *testing.T) {
 
 	assert.Assert(
 		t,
-		strings.Contains(body, `data-key="acme/api#1" data-url="`+passing.URL+`" data-ci="good" data-passing>`),
+		strings.Contains(
+			body,
+			`data-key="acme/api#1" data-url="`+passing.URL+`" data-ci="good" data-passing data-behind>`,
+		),
 		body,
 	)
 	assert.Assert(t, strings.Contains(body, `data-key="acme/api#2" data-url="`+failing.URL+`" data-ci="bad">`), body)
@@ -597,6 +600,8 @@ func TestServer_Index_RendersSelection(t *testing.T) {
 	assert.Assert(t, strings.Contains(body, `value="acme/api#1"`), body)
 	assert.Assert(t, strings.Contains(body, `data-select="passing"`), body)
 	assert.Assert(t, strings.Contains(body, `data-select="failing"`), body)
+	assert.Assert(t, strings.Contains(body, `data-select="behind"`), body)
+	assert.Assert(t, strings.Contains(body, `data-rebase="acme/api#1"`), body)
 	assert.Assert(t, strings.Contains(body, `class="prompt-dialog"`), body)
 	assert.Assert(t, strings.Contains(body, `class="island js-only"`), body)
 }

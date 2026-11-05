@@ -107,6 +107,7 @@ func newRows(now time.Time, prs []ghclient.PullRequest, q pageQuery) []row {
 			Extras:  extraBadges(pr),
 			CI:      ciBadge(pr.CI),
 			Passing: passing(pr),
+			Behind:  pr.MergeState == ghclient.MergeStateBehind && !pr.Draft,
 		})
 	}
 	return rows
