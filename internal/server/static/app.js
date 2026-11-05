@@ -408,7 +408,11 @@ Finish with a short summary of what you did to each pull request.`;
         el("span", { class: "repo-name" }, item.repository.split("/").pop()),
         el("span", { class: "num" }, `#${item.number}`),
       ),
-      el("span", { class: "item-title" }, item.message || item.title),
+      el(
+        "span",
+        { class: "item-title", title: item.message || item.title },
+        item.message || item.title,
+      ),
       item.removable
         ? el(
             "button",
