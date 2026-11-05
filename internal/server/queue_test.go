@@ -271,6 +271,25 @@ func TestQueue_Merge_ExplainsMissingWorkflowScope(t *testing.T) {
 	assert.Assert(t, strings.Contains(got, "gh auth refresh -s workflow"), got)
 }
 
+func TestQueue_Merge_ExplainsWaitingOnReviewWhenEnqueuing(t *testing.T) {
+	t.Parallel()
+	status := clean("a")
+	status.MergeQueueRequired = true
+	merger := &fakeMerger{
+		statuses: map[string][]ghclient.Status{"PR_1": {status}},
+		failing: map[string]error{"enqueue PR_1 a": fmt.Errorf(
+			"enqueue: %w", &ghclient.ReviewRequiredError{Reason: "code owner review from acme/platform"},
+		)},
+	}
+	q, _ := startQueue(t, merger)
+
+	assert.NilError(t, q.add(context.Background(), actionMerge, []ghclient.PullRequest{testPullRequest("acme/api", 1)}))
+
+	assert.DeepEqual(t, steps(waitIdle(t, q)), map[string]string{
+		"acme/api#1": "failed: Waiting on code owner review from acme/platform",
+	})
+}
+
 func TestQueue_Merge_RetriesAFailedMergeOnce(t *testing.T) {
 	t.Parallel()
 	merger := &fakeMerger{

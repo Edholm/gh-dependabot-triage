@@ -268,3 +268,14 @@ func TestClient_UpdateBranch_MissingWorkflowScope(t *testing.T) {
 	err := ghclient.New(doer).UpdateBranch(context.Background(), "PR_1", "abc")
 	assert.Assert(t, errors.Is(err, ghclient.ErrMissingWorkflowScope), "got %v", err)
 }
+
+func TestClient_Enqueue_WaitingOnReview(t *testing.T) {
+	t.Parallel()
+	doer := &fakeDoer{errs: []error{errors.New(
+		"GraphQL: Pull request Waiting on code owner review from acme/platform. (enqueuePullRequest)",
+	)}}
+	err := ghclient.New(doer).Enqueue(context.Background(), "PR_1", "abc")
+	var reviewErr *ghclient.ReviewRequiredError
+	assert.Assert(t, errors.As(err, &reviewErr), "got %v", err)
+	assert.Equal(t, reviewErr.Reason, "code owner review from acme/platform")
+}

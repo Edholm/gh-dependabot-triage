@@ -420,6 +420,13 @@ func (q *queue) advance(
 		return false
 	case status.MergeQueueRequired:
 		if err := q.merger.Enqueue(ctx, item.pr.ID, status.HeadOID); err != nil {
+			var reviewErr *ghclient.ReviewRequiredError
+			if errors.As(err, &reviewErr) {
+				// Expected until someone reviews, so not worth an error log.
+				logger.Warn("not enqueued, review required", "reason", reviewErr.Reason)
+				q.set(item, stepFailed, "Waiting on "+reviewErr.Reason)
+				return true
+			}
 			logger.Error("enqueue failed", "error", err)
 			q.set(item, stepFailed, err.Error())
 			return true

@@ -4,8 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// waitingOnReviewPattern matches GitHub's refusal to enqueue a pull request that still needs a review.
+var waitingOnReviewPattern = regexp.MustCompile(`Waiting on (.*?review.*?)\.? \(enqueuePullRequest\)`)
+
+// ReviewRequiredError is returned when GitHub refuses to enqueue a pull request because it still needs a review.
+type ReviewRequiredError struct {
+	// Reason is what GitHub is waiting for, for example "code owner review from acme/platform".
+	Reason string
+}
+
+func (e *ReviewRequiredError) Error() string {
+	return "waiting on " + e.Reason
+}
 
 // ErrMissingWorkflowScope is returned when GitHub refuses to update a pull request branch because the update would
 // change a workflow file and the token lacks the workflow scope.
@@ -141,6 +155,9 @@ func (c *Client) Merge(ctx context.Context, id, head string) error {
 // pull request branch no longer points to head.
 func (c *Client) Enqueue(ctx context.Context, id, head string) error {
 	if err := c.mutate(ctx, enqueueMutation, map[string]any{"id": id, "head": head}); err != nil {
+		if match := waitingOnReviewPattern.FindStringSubmatch(err.Error()); match != nil {
+			return fmt.Errorf("add pull request %s to the merge queue: %w", id, &ReviewRequiredError{Reason: match[1]})
+		}
 		return fmt.Errorf("add pull request %s to the merge queue: %v", id, err)
 	}
 	return nil
