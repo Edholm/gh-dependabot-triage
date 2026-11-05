@@ -12,11 +12,10 @@ pull request description.
 
 ## Install
 
-From a checkout:
+From a checkout, which also upgrades an extension installed this way:
 
 ```bash
-make go-build
-gh extension install .
+make install
 ```
 
 ## Usage

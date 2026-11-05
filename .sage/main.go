@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"strings"
 
 	"go.einride.tech/sage/sg"
 	"go.einride.tech/sage/tools/sgbackstage"
@@ -40,6 +42,26 @@ func GoModTidy(ctx context.Context) error {
 func GoBuild(ctx context.Context) error {
 	sg.Logger(ctx).Println("building the gh extension binary...")
 	return sg.Command(ctx, "go", "build", "-o", "gh-dependabot-triage", ".").Run()
+}
+
+// Install builds the extension and installs it with gh, or rebuilds it if it is installed from this checkout already.
+// A local extension runs the binary in the checkout, so rebuilding is all an upgrade takes.
+func Install(ctx context.Context) error {
+	sg.Deps(ctx, GoBuild)
+	var installed bytes.Buffer
+	list := sg.Command(ctx, "gh", "extension", "list")
+	list.Stdout = &installed
+	if err := list.Run(); err != nil {
+		return err
+	}
+	for line := range strings.Lines(installed.String()) {
+		if strings.HasPrefix(line, "gh dependabot-triage\t") {
+			sg.Logger(ctx).Println("extension is installed already, rebuilt it in place")
+			return nil
+		}
+	}
+	sg.Logger(ctx).Println("installing the gh extension...")
+	return sg.Command(ctx, "gh", "extension", "install", ".").Run()
 }
 
 func GoTest(ctx context.Context) error {
