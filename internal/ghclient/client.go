@@ -167,41 +167,64 @@ func isTransient(err error) bool {
 	}
 }
 
+// The response types below spell out the JSON name of every field. go-gh decodes responses with encoding/json, which
+// matches names case-insensitively, while encoding/json/v2 matches them exactly; explicit names decode the same with
+// both.
+
 type searchResponse struct {
 	Search struct {
 		PageInfo struct {
-			HasNextPage bool
-			EndCursor   string
-		}
-		Nodes []pullRequestNode
-	}
+			HasNextPage bool   `json:"hasNextPage"`
+			EndCursor   string `json:"endCursor"`
+		} `json:"pageInfo"`
+		Nodes []pullRequestNode `json:"nodes"`
+	} `json:"search"`
 }
 
 type pullRequestNode struct {
-	ID               string
-	Number           int
-	Title            string
-	BodyText         string
-	URL              string
-	IsDraft          bool
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Author           *struct{ Login string }
-	Repository       struct{ NameWithOwner string }
-	ReviewDecision   ReviewDecision
-	MergeStateStatus MergeState
-	AutoMergeRequest *struct{ EnabledAt time.Time }
-	MergeQueueEntry  *struct {
-		State    string
-		Position int
+	ID        string    `json:"id"`
+	Number    int       `json:"number"`
+	Title     string    `json:"title"`
+	BodyText  string    `json:"bodyText"`
+	URL       string    `json:"url"`
+	IsDraft   bool      `json:"isDraft"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Author    *struct {
+		Login string `json:"login"`
+	} `json:"author"`
+	Repository struct {
+		NameWithOwner string `json:"nameWithOwner"`
+	} `json:"repository"`
+	ReviewDecision   ReviewDecision `json:"reviewDecision"`
+	MergeStateStatus MergeState     `json:"mergeStateStatus"`
+	AutoMergeRequest *struct {
+		EnabledAt time.Time `json:"enabledAt"`
+	} `json:"autoMergeRequest"`
+	MergeQueueEntry *struct {
+		State    string `json:"state"`
+		Position int    `json:"position"`
+	} `json:"mergeQueueEntry"`
+	Commits lastCommit `json:"commits"`
+}
+
+// lastCommit is the commits(last: 1) connection of a pull request, with the CI state of that commit.
+type lastCommit struct {
+	Nodes []struct {
+		Commit struct {
+			StatusCheckRollup *struct {
+				State CheckState `json:"state"`
+			} `json:"statusCheckRollup"`
+		} `json:"commit"`
+	} `json:"nodes"`
+}
+
+// ci returns the combined CI state of the commit, or an empty state if it has no checks.
+func (c lastCommit) ci() CheckState {
+	if len(c.Nodes) == 0 || c.Nodes[0].Commit.StatusCheckRollup == nil {
+		return ""
 	}
-	Commits struct {
-		Nodes []struct {
-			Commit struct {
-				StatusCheckRollup *struct{ State CheckState }
-			}
-		}
-	}
+	return c.Nodes[0].Commit.StatusCheckRollup.State
 }
 
 func (n pullRequestNode) pullRequest() PullRequest {
@@ -219,12 +242,10 @@ func (n pullRequestNode) pullRequest() PullRequest {
 		ReviewDecision: n.ReviewDecision,
 		MergeState:     n.MergeStateStatus,
 		AutoMerge:      n.AutoMergeRequest != nil,
+		CI:             n.Commits.ci(),
 	}
 	if n.MergeQueueEntry != nil {
 		pr.MergeQueue = &MergeQueueEntry{State: n.MergeQueueEntry.State, Position: n.MergeQueueEntry.Position}
-	}
-	if len(n.Commits.Nodes) > 0 && n.Commits.Nodes[0].Commit.StatusCheckRollup != nil {
-		pr.CI = n.Commits.Nodes[0].Commit.StatusCheckRollup.State
 	}
 	return pr
 }

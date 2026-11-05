@@ -1,7 +1,7 @@
 package server
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"mime"
 	"net/http"
 	"slices"
@@ -78,14 +78,14 @@ func (s *Server) handleQueueClear(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) writeQueue(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	if err := json.NewEncoder(w).Encode(s.queue.view()); err != nil {
+	if err := json.MarshalWrite(w, s.queue.view()); err != nil {
 		s.logger.Error("write queue", "error", err)
 	}
 }
 
 // decodeJSON decodes the body of r into v. If that fails, it answers the request and returns false.
 func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxQueueRequestBytes)).Decode(v); err != nil {
+	if err := json.UnmarshalRead(http.MaxBytesReader(w, r.Body, maxQueueRequestBytes), v); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return false
 	}

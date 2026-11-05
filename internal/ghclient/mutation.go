@@ -72,20 +72,16 @@ mutation($id: ID!, $head: GitObjectID!) {
 func (c *Client) Status(ctx context.Context, id string) (Status, error) {
 	var response struct {
 		Node *struct {
-			State               PullRequestState
-			HeadRefOID          string `json:"headRefOid"`
-			ReviewDecision      ReviewDecision
-			MergeStateStatus    MergeState
-			IsMergeQueueEnabled bool
-			MergeQueueEntry     *struct{ State string }
-			Commits             struct {
-				Nodes []struct {
-					Commit struct {
-						StatusCheckRollup *struct{ State CheckState }
-					}
-				}
-			}
-		}
+			State               PullRequestState `json:"state"`
+			HeadRefOID          string           `json:"headRefOid"`
+			ReviewDecision      ReviewDecision   `json:"reviewDecision"`
+			MergeStateStatus    MergeState       `json:"mergeStateStatus"`
+			IsMergeQueueEnabled bool             `json:"isMergeQueueEnabled"`
+			MergeQueueEntry     *struct {
+				State string `json:"state"`
+			} `json:"mergeQueueEntry"`
+			Commits lastCommit `json:"commits"`
+		} `json:"node"`
 	}
 	if err := c.do(ctx, statusQuery, map[string]any{"id": id}, &response); err != nil {
 		return Status{}, fmt.Errorf("get status of pull request %s: %v", id, err)
@@ -101,9 +97,7 @@ func (c *Client) Status(ctx context.Context, id string) (Status, error) {
 		MergeState:         node.MergeStateStatus,
 		MergeQueueRequired: node.IsMergeQueueEnabled,
 		InMergeQueue:       node.MergeQueueEntry != nil,
-	}
-	if len(node.Commits.Nodes) > 0 && node.Commits.Nodes[0].Commit.StatusCheckRollup != nil {
-		status.CI = node.Commits.Nodes[0].Commit.StatusCheckRollup.State
+		CI:                 node.Commits.ci(),
 	}
 	return status, nil
 }
