@@ -404,6 +404,25 @@ func TestQueue_Remove_StopsWaitingForCI(t *testing.T) {
 	}
 }
 
+func TestQueue_Remove_StopsWaitingForABlockedPullRequest(t *testing.T) {
+	t.Parallel()
+	pr := testPullRequest("acme/api", 1)
+	blocked := withState(clean("a"), ghclient.MergeStateBlocked, ghclient.CheckSuccess)
+	blocked.ReviewDecision = ghclient.ReviewApproved
+	merger := &fakeMerger{statuses: map[string][]ghclient.Status{"PR_1": {blocked}}}
+	q, _ := startQueue(t, merger)
+
+	assert.NilError(t, q.add(t.Context(), actionMerge, []ghclient.PullRequest{pr}))
+	deadline := time.Now().Add(5 * time.Second)
+	for steps(q.view())["acme/api#1"] != "waiting: Blocked by branch protection" {
+		assert.Assert(t, time.Now().Before(deadline), "never waited, at %v", steps(q.view()))
+		time.Sleep(time.Millisecond)
+	}
+	assert.Assert(t, q.remove("acme/api#1"))
+
+	assert.DeepEqual(t, waitIdle(t, q).Items, []queueItemView{})
+}
+
 func TestQueue_RemoveAndClear(t *testing.T) {
 	t.Parallel()
 	q := newQueue(slog.New(slog.DiscardHandler), &fakeMerger{}, func() {})
