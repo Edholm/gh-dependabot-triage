@@ -26,9 +26,9 @@ gh dependabot-triage
 
 This starts a server on a random port on `127.0.0.1` and opens it in your
 browser. Pull requests are fetched from GitHub in the background every minute
-(GitHub is slow to answer, so the page never waits for it), and the page reloads
-itself while it is visible. Use the Refresh button to fetch right away. Stop the
-server with Ctrl-C.
+(GitHub is slow to answer, so the page never waits for it), and the page
+refreshes itself in place while it is visible. Use the Refresh button to fetch
+right away. Stop the server with Ctrl-C.
 
 | Flag           | Description                                      |
 | -------------- | ------------------------------------------------ |
@@ -56,3 +56,31 @@ The sort order is kept in the URL, so it survives the automatic reload and the
 Refresh button. Review, status and CI sort from the most ready to merge (for
 example passing CI first), and Age starts with the oldest pull request. Rows
 that are equal in the sorted column stay ordered by repository and number.
+
+## Approving and merging
+
+Tick pull requests to select them, or use the Select buttons above the table:
+"Passing CI" selects every pull request shown with passing CI that is not a
+draft, has no conflicts and is not already in a merge queue. Shift-click a box
+to select a range. A selection is kept while you sort and filter, in this tab
+only.
+
+While pull requests are selected, an island at the bottom of the page offers:
+
+- **Approve** approves them.
+- **Approve & merge** approves all of them right away, then merges them one at a
+  time per repository, in the order the table shows them. Pull requests of
+  different repositories are merged in parallel. Before each merge it waits for
+  CI. When a pull request is behind its base branch, it is rebased onto it
+  (never merged with it), and merged once CI passes again. Merges always
+  rebase-merge. When a repository requires a GitHub merge queue, the pull
+  request is added to that queue instead, and the work is done.
+
+A pull request fails, and the queue moves on to the next one, when CI fails, it
+has conflicts, it still needs a review after the approval, a merge fails twice,
+or it does not become mergeable within 30 minutes of its last rebase. The island
+lists the queue with the state of each pull request. Pull requests that are
+still waiting can be removed from it.
+
+The queue runs in the server, so it keeps going when you close the page, but it
+stops when you stop the server.

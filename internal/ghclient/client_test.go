@@ -153,3 +153,82 @@ func TestClient_ListReviewRequested_StopsRetryingWhenContextIsCanceled(t *testin
 	assert.ErrorContains(t, err, "context canceled")
 	assert.Equal(t, len(doer.calls), 1)
 }
+
+func TestClient_Status(t *testing.T) {
+	t.Parallel()
+	doer := &fakeDoer{responses: []string{`{"node": {
+		"state": "OPEN",
+		"headRefOid": "abc123",
+		"reviewDecision": "APPROVED",
+		"mergeStateStatus": "BEHIND",
+		"isMergeQueueEnabled": true,
+		"mergeQueueEntry": {"state": "QUEUED"},
+		"commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "PENDING"}}}]}
+	}}`}}
+
+	got, err := ghclient.New(doer).Status(context.Background(), "PR_1")
+
+	assert.NilError(t, err)
+	assert.DeepEqual(t, got, ghclient.Status{
+		State:              ghclient.PullRequestOpen,
+		HeadOID:            "abc123",
+		ReviewDecision:     ghclient.ReviewApproved,
+		MergeState:         ghclient.MergeStateBehind,
+		CI:                 ghclient.CheckPending,
+		MergeQueueRequired: true,
+		InMergeQueue:       true,
+	})
+	assert.DeepEqual(t, doer.calls, []map[string]any{{"id": "PR_1"}})
+}
+
+func TestClient_Status_NotFound(t *testing.T) {
+	t.Parallel()
+	doer := &fakeDoer{responses: []string{`{"node": null}`}}
+
+	_, err := ghclient.New(doer).Status(context.Background(), "PR_1")
+
+	assert.ErrorContains(t, err, "not found")
+}
+
+func TestClient_Mutations(t *testing.T) {
+	t.Parallel()
+	client := func(doer *fakeDoer) *ghclient.Client { return ghclient.New(doer, ghclient.WithRetryDelay(0)) }
+	for _, tt := range []struct {
+		name string
+		call func(*ghclient.Client) error
+		want map[string]any
+	}{
+		{
+			name: "approve",
+			call: func(c *ghclient.Client) error { return c.Approve(context.Background(), "PR_1") },
+			want: map[string]any{"id": "PR_1"},
+		},
+		{
+			name: "update branch",
+			call: func(c *ghclient.Client) error { return c.UpdateBranch(context.Background(), "PR_1", "abc") },
+			want: map[string]any{"id": "PR_1", "head": "abc"},
+		},
+		{
+			name: "merge",
+			call: func(c *ghclient.Client) error { return c.Merge(context.Background(), "PR_1", "abc") },
+			want: map[string]any{"id": "PR_1", "head": "abc"},
+		},
+		{
+			name: "enqueue",
+			call: func(c *ghclient.Client) error { return c.Enqueue(context.Background(), "PR_1", "abc") },
+			want: map[string]any{"id": "PR_1", "head": "abc"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			doer := &fakeDoer{responses: []string{`{}`}}
+			assert.NilError(t, tt.call(client(doer)))
+			assert.DeepEqual(t, doer.calls, []map[string]any{tt.want})
+
+			// Mutations are never retried, not even on transient errors.
+			failing := &fakeDoer{errs: []error{&api.HTTPError{StatusCode: http.StatusBadGateway}}}
+			assert.Assert(t, tt.call(client(failing)) != nil)
+			assert.Equal(t, len(failing.calls), 1)
+		})
+	}
+}

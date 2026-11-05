@@ -52,6 +52,8 @@ type badge struct {
 
 // row is the presentation model of one pull request in the table.
 type row struct {
+	// Key identifies the pull request when it is selected for the queue, see pullRequestKey.
+	Key string
 	// Repository is the full owner/name, Owner and Name are its two parts.
 	Repository string
 	Owner      string
@@ -69,6 +71,9 @@ type row struct {
 	Status      badge
 	Extras      []badge
 	CI          badge
+	// Passing reports whether the pull request has passing CI and nothing else that obviously stops it from being
+	// merged. The "select passing" button selects these.
+	Passing bool
 }
 
 // newRows returns the rows of the pull requests of prs that q shows, sorted by q.
@@ -80,6 +85,7 @@ func newRows(now time.Time, prs []ghclient.PullRequest, q pageQuery) []row {
 			owner, name = "", pr.Repository
 		}
 		rows = append(rows, row{
+			Key:         pullRequestKey(pr),
 			Repository:  pr.Repository,
 			Owner:       owner,
 			Name:        name,
@@ -94,10 +100,11 @@ func newRows(now time.Time, prs []ghclient.PullRequest, q pageQuery) []row {
 				pr.CreatedAt.Format(time.DateTime),
 				pr.UpdatedAt.Format(time.DateTime),
 			),
-			Review: reviewBadge(pr.ReviewDecision),
-			Status: statusBadge(pr),
-			Extras: extraBadges(pr),
-			CI:     ciBadge(pr.CI),
+			Review:  reviewBadge(pr.ReviewDecision),
+			Status:  statusBadge(pr),
+			Extras:  extraBadges(pr),
+			CI:      ciBadge(pr.CI),
+			Passing: passing(pr),
 		})
 	}
 	return rows
@@ -169,6 +176,15 @@ func extraBadges(pr ghclient.PullRequest) []badge {
 		)
 	}
 	return extras
+}
+
+// passing reports whether pr has passing CI and can be merged, or will be once it is approved and up to date.
+func passing(pr ghclient.PullRequest) bool {
+	return pr.CI == ghclient.CheckSuccess &&
+		!pr.Draft &&
+		pr.MergeState != ghclient.MergeStateDirty &&
+		pr.MergeState != ghclient.MergeStateDraft &&
+		pr.MergeQueue == nil
 }
 
 func ciBadge(state ghclient.CheckState) badge {

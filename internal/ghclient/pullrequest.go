@@ -51,6 +51,8 @@ type MergeQueueEntry struct {
 
 // PullRequest is a Dependabot pull request.
 type PullRequest struct {
+	// ID is the GraphQL node ID, which identifies the pull request in mutations.
+	ID string
 	// Repository is the repository in owner/name form.
 	Repository string
 	Number     int

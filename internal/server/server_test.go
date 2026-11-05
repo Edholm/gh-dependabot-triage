@@ -69,7 +69,7 @@ func testNow() time.Time {
 func newTestServer(t *testing.T, lister PullRequestLister, opts ...Option) *Server {
 	t.Helper()
 	opts = append([]Option{WithClock(testNow)}, opts...)
-	srv, err := New(slog.New(slog.DiscardHandler), lister, opts...)
+	srv, err := New(slog.New(slog.DiscardHandler), lister, &fakeMerger{}, opts...)
 	assert.NilError(t, err)
 	return srv
 }

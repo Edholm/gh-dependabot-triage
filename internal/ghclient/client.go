@@ -32,6 +32,7 @@ query($q: String!, $first: Int!, $after: String) {
     pageInfo { hasNextPage endCursor }
     nodes {
       ... on PullRequest {
+        id
         number
         title
         bodyText
@@ -88,7 +89,7 @@ func (c *Client) ListReviewRequested(ctx context.Context) ([]PullRequest, error)
 	for {
 		var response searchResponse
 		variables := map[string]any{"q": searchQuery, "first": pageSize, "after": after}
-		if err := c.do(ctx, variables, &response); err != nil {
+		if err := c.do(ctx, listQuery, variables, &response); err != nil {
 			return nil, fmt.Errorf("search pull requests: %v", err)
 		}
 		for _, node := range response.Search.Nodes {
@@ -106,12 +107,12 @@ func (c *Client) ListReviewRequested(ctx context.Context) ([]PullRequest, error)
 	}
 }
 
-// do sends the list query. GitHub's search regularly answers 502 while it computes merge states, so transient server
-// errors are retried a few times.
-func (c *Client) do(ctx context.Context, variables map[string]any, response *searchResponse) error {
+// do sends a read-only query. GitHub regularly answers 502 while it computes merge states, so transient server errors
+// are retried a few times. Mutations must not go through do: a mutation that timed out may still have been applied.
+func (c *Client) do(ctx context.Context, query string, variables map[string]any, response any) error {
 	var err error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		err = c.doer.DoWithContext(ctx, listQuery, variables, response)
+		err = c.doer.DoWithContext(ctx, query, variables, response)
 		if err == nil || !isTransient(err) || attempt == maxAttempts {
 			return err
 		}
@@ -149,6 +150,7 @@ type searchResponse struct {
 }
 
 type pullRequestNode struct {
+	ID               string
 	Number           int
 	Title            string
 	BodyText         string
@@ -176,6 +178,7 @@ type pullRequestNode struct {
 
 func (n pullRequestNode) pullRequest() PullRequest {
 	pr := PullRequest{
+		ID:             n.ID,
 		Repository:     n.Repository.NameWithOwner,
 		Number:         n.Number,
 		Title:          n.Title,

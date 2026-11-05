@@ -86,6 +86,13 @@ button:hover {
   border-color: var(--muted);
 }
 
+/* Narrow screens scroll the table sideways rather than the page, so the island stays on screen. */
+.table-wrap {
+  overflow-x: auto;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 table {
   width: 100%;
   max-width: 1200px;
@@ -302,11 +309,208 @@ footer .github {
   color: var(--info-fg);
 }
 
+/* Controls that only work with app.js stay hidden until it has run. */
+:root:not(.js) .js-only {
+  display: none;
+}
+
+.island[hidden] {
+  display: none;
+}
+
+button.primary {
+  border-color: var(--good-fg);
+  background: var(--good-fg);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+button.primary:hover {
+  border-color: var(--fg);
+}
+
+button.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+button.ghost:hover {
+  border-color: var(--border);
+  color: var(--fg);
+}
+
+button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.selection-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 1200px;
+  margin: 0 auto 8px;
+  color: var(--muted);
+}
+
+.selection-tools button {
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+th.select,
+td.select {
+  width: 1%;
+  padding-right: 0;
+}
+
+td.select input,
+th.select input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  cursor: pointer;
+}
+
+tbody tr.selected {
+  background: var(--info-bg);
+}
+
+tbody tr.selected:hover {
+  background: var(--info-bg);
+}
+
+/* Leave room below the table so the island never covers the last rows. */
+body.has-island {
+  padding-bottom: 40vh;
+}
+
+/* The island floats above the bottom of the page while pull requests are selected or queued. */
+.island {
+  position: fixed;
+  z-index: 10;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+  transform: translateX(-50%);
+}
+
+.island-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.island-bar .count {
+  font-weight: 600;
+}
+
+.island-bar .actions {
+  display: flex;
+  gap: 8px;
+}
+
+.island-error {
+  margin: 0;
+  color: var(--bad-fg);
+}
+
+.queue + .island-bar {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.queue-head .toggle {
+  padding-left: 0;
+  color: var(--fg);
+}
+
+.queue-head .summary {
+  color: var(--muted);
+}
+
+.queue ol {
+  overflow-y: auto;
+  max-height: 30vh;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queue li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.queue li.finished {
+  opacity: 0.75;
+}
+
+.queue li .badge {
+  flex: none;
+  min-width: 112px;
+  text-align: center;
+}
+
+.queue li a {
+  flex: none;
+  color: var(--link);
+  text-decoration: none;
+}
+
+.queue li a:hover {
+  text-decoration: underline;
+}
+
+.queue li .repo-name {
+  color: var(--fg);
+}
+
+.queue li .item-title {
+  overflow: hidden;
+  flex: 1;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue li button {
+  flex: none;
+  padding: 0 8px;
+}
+
 @media (max-width: 720px) {
-  th:nth-child(1),
-  td:nth-child(1),
-  th:nth-child(3),
-  td:nth-child(3) {
+  th:nth-child(2),
+  td:nth-child(2),
+  th:nth-child(4),
+  td:nth-child(4) {
     display: none;
+  }
+
+  .queue li .badge {
+    min-width: 0;
   }
 }

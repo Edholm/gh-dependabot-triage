@@ -51,6 +51,8 @@ type Server struct {
 	// refreshRequests asks the refresh loop to fetch right away. It has room for one pending request.
 	refreshRequests chan struct{}
 
+	queue *queue
+
 	mu    sync.Mutex
 	state state
 }
@@ -68,8 +70,17 @@ func WithRefreshInterval(interval time.Duration) Option {
 	return func(s *Server) { s.refreshInterval = interval }
 }
 
-// New returns a Server that shows the pull requests returned by lister.
-func New(logger *slog.Logger, lister PullRequestLister, opts ...Option) (*Server, error) {
+// WithQueueTiming overrides how often the merge queue checks a pull request it is waiting for, and how long it waits
+// for it to become mergeable.
+func WithQueueTiming(pollInterval, waitTimeout time.Duration) Option {
+	return func(s *Server) {
+		s.queue.pollInterval = pollInterval
+		s.queue.waitTimeout = waitTimeout
+	}
+}
+
+// New returns a Server that shows the pull requests returned by lister, and approves and merges them with merger.
+func New(logger *slog.Logger, lister PullRequestLister, merger Merger, opts ...Option) (*Server, error) {
 	tmpl, err := template.ParseFS(templateFS, "templates/index.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %v", err)
@@ -82,6 +93,7 @@ func New(logger *slog.Logger, lister PullRequestLister, opts ...Option) (*Server
 		refreshInterval: DefaultRefreshInterval,
 		refreshRequests: make(chan struct{}, 1),
 	}
+	s.queue = newQueue(logger, merger, s.requestRefresh)
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -97,6 +109,10 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.handleIndex)
 	mux.HandleFunc("POST /refresh", s.handleRefresh)
+	mux.HandleFunc("GET /queue", s.handleQueue)
+	mux.Handle("POST /queue", requireSameOriginJSON(http.HandlerFunc(s.handleQueueAdd)))
+	mux.Handle("POST /queue/remove", requireSameOriginJSON(http.HandlerFunc(s.handleQueueRemove)))
+	mux.Handle("POST /queue/clear", requireSameOriginJSON(http.HandlerFunc(s.handleQueueClear)))
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 	return requireLoopbackHost(mux), nil
 }
@@ -109,12 +125,13 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 		return err
 	}
 
-	var refresher sync.WaitGroup
-	refreshCtx, stopRefreshing := context.WithCancel(ctx)
-	// Deferred in this order so that the refresh loop is canceled before it is waited for.
-	defer refresher.Wait()
-	defer stopRefreshing()
-	refresher.Go(func() { s.refreshLoop(refreshCtx) })
+	var background sync.WaitGroup
+	backgroundCtx, stopBackground := context.WithCancel(ctx)
+	// Deferred in this order so that the background work is canceled before it is waited for.
+	defer background.Wait()
+	defer stopBackground()
+	background.Go(func() { s.refreshLoop(backgroundCtx) })
+	background.Go(func() { s.queue.run(backgroundCtx) })
 
 	srv := &http.Server{Handler: handler, ReadHeaderTimeout: readHeaderTimeout}
 	errCh := make(chan error, 1)

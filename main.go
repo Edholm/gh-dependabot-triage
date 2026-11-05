@@ -43,7 +43,8 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("create GitHub client (are you logged in? try `gh auth login`): %v", err)
 	}
-	srv, err := server.New(logger, ghclient.New(gql))
+	github := ghclient.New(gql)
+	srv, err := server.New(logger, github, github)
 	if err != nil {
 		return err
 	}
