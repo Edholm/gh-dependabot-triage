@@ -43,6 +43,12 @@ already.
 The footer has a theme switcher: System (the default, follows your operating
 system), Light or Dark. The choice is saved in your browser's local storage.
 
+## Filtering by repository
+
+Click a repository to show only its pull requests, and click "Show all" above
+the table to go back. The filter is kept in the URL together with the sort
+order, so it survives the automatic reload and the Refresh button.
+
 ## Sorting
 
 Click a column heading to sort by it, and click it again to reverse the order.

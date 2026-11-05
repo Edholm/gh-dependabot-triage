@@ -38,21 +38,6 @@ func TestParseOrder(t *testing.T) {
 	}
 }
 
-func TestOrder_PathRoundTrips(t *testing.T) {
-	t.Parallel()
-	for _, c := range columns() {
-		for _, descending := range []bool{false, true} {
-			want := order{column: c, descending: descending}
-
-			target, err := url.Parse(want.path("/"))
-			assert.NilError(t, err)
-
-			assert.Equal(t, parseOrder(target.Query()), want)
-		}
-	}
-	assert.Equal(t, defaultOrder().path("/refresh"), "/refresh", "the default order needs no query")
-}
-
 func TestOrder_Clicked(t *testing.T) {
 	t.Parallel()
 
@@ -61,22 +46,6 @@ func TestOrder_Clicked(t *testing.T) {
 	assert.Equal(t, order{column: columnCI, descending: true}.clicked(columnCI), order{column: columnCI})
 	assert.Equal(t, order{column: columnCI, descending: true}.clicked(columnReview), order{column: columnReview})
 	assert.Equal(t, defaultOrder().clicked(columnAge), order{column: columnAge, descending: true})
-}
-
-func TestOrder_Headers(t *testing.T) {
-	t.Parallel()
-
-	headers := order{column: columnCI, descending: true}.headers()
-
-	assert.DeepEqual(t, headers, []header{
-		{Label: "Repository", Href: "/"},
-		{Label: "Pull request", Href: "/?dir=asc&sort=title"},
-		{Label: "Age", Href: "/?dir=desc&sort=age"},
-		{Label: "Review", Href: "/?dir=asc&sort=review"},
-		{Label: "Status", Href: "/?dir=asc&sort=status"},
-		{Label: "CI", Href: "/?dir=asc&sort=ci", Sort: "descending", Arrow: "▼"},
-	})
-	assert.Equal(t, defaultOrder().headers()[0].Sort, "ascending")
 }
 
 func TestSortPullRequests(t *testing.T) {

@@ -22,6 +22,10 @@
   <p class="error" role="alert">Could not fetch pull requests from GitHub: {{.Error}}</p>
   {{end}}
 
+  {{with .Filter}}
+  <p class="filter">Showing {{len $.Rows}} of {{$.Total}} pull requests from <strong>{{.Repository}}</strong> <a href="{{.ClearHref}}">Show all</a></p>
+  {{end}}
+
   {{if .Rows}}
   <table>
     <thead>
@@ -34,7 +38,7 @@
     <tbody>
       {{range .Rows}}
       <tr>
-        <td class="repo" title="{{.Repository}}"><span class="owner">{{.Owner}}</span><span class="name">{{.Name}}</span></td>
+        <td class="repo"><a href="{{.FilterHref}}" title="Only show pull requests from {{.Repository}}"><span class="owner">{{.Owner}}</span><span class="name">{{.Name}}</span></a></td>
         <td class="title"><a href="{{.URL}}"{{if .Description}} title="{{.Description}}"{{end}} target="_blank" rel="noopener noreferrer"><span class="num">#{{.Number}}</span> {{.Title}}</a></td>
         <td class="age" title="{{.AgeTitle}}">{{.Age}}</td>
         <td><span class="badge {{.Review.Class}}">{{.Review.Label}}</span></td>
@@ -47,6 +51,8 @@
       {{end}}
     </tbody>
   </table>
+  {{else if and .Loaded .Filter}}
+  <p class="empty">No Dependabot pull requests from {{.Filter.Repository}} are waiting for your review.</p>
   {{else if .Loaded}}
   <p class="empty">No Dependabot pull requests are waiting for your review.</p>
   {{else if not .Error}}

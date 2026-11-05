@@ -249,6 +249,43 @@ func TestServer_Index_MarksSortedColumn(t *testing.T) {
 	assert.Equal(t, strings.Count(body, "aria-sort="), 1, "only the sorted column is marked")
 }
 
+func TestServer_Index_FiltersByRepository(t *testing.T) {
+	t.Parallel()
+	lister := &fakeLister{prs: []ghclient.PullRequest{
+		{Repository: "acme/api", Number: 1, Title: "api one"},
+		{Repository: "acme/web", Number: 2, Title: "web one"},
+		{Repository: "acme/api", Number: 3, Title: "api two"},
+	}}
+	srv := newTestServer(t, lister)
+	assert.NilError(t, srv.Refresh(context.Background()))
+	handler := newTestHandler(t, srv)
+
+	all := do(t, handler, http.MethodGet, "/", "localhost").Body.String()
+	assert.Assert(
+		t,
+		strings.Contains(all, `<a href="/?repo=acme%2Fapi" title="Only show pull requests from acme/api">`),
+		all,
+	)
+	assert.Assert(t, !strings.Contains(all, `class="filter"`), "an unfiltered page has no filter notice")
+
+	body := do(t, handler, http.MethodGet, "/?repo=acme%2Fapi&sort=ci&dir=asc", "localhost").Body.String()
+
+	for _, want := range []string{
+		"api one", "api two", "3 open",
+		`Showing 2 of 3 pull requests from <strong>acme/api</strong> <a href="/?dir=asc&amp;sort=ci">Show all</a>`,
+		`<form method="post" action="/refresh?dir=asc&amp;repo=acme%2Fapi&amp;sort=ci">`,
+		`<a href="/?dir=desc&amp;repo=acme%2Fapi&amp;sort=ci">CI`,
+	} {
+		assert.Assert(t, strings.Contains(body, want), "body is missing %q:\n%s", want, body)
+	}
+	assert.Assert(t, !strings.Contains(body, "web one"), "other repositories must be hidden:\n%s", body)
+
+	empty := do(t, handler, http.MethodGet, "/?repo=acme%2Fnope", "localhost").Body.String()
+	assert.Assert(t, strings.Contains(empty, "No Dependabot pull requests from acme/nope are waiting for your review."))
+	assert.Assert(t, strings.Contains(empty, `<a href="/">Show all</a>`), "the filter must be clearable:\n%s", empty)
+	assert.Assert(t, !strings.Contains(empty, "<table"))
+}
+
 func TestServer_Index_Empty(t *testing.T) {
 	t.Parallel()
 	srv := newTestServer(t, &fakeLister{})
@@ -348,7 +385,7 @@ func TestServer_RefreshEndpoint_QueuesOneRefresh(t *testing.T) {
 	assert.Assert(t, strings.Contains(index(t, handler), "Updating…"), "the page must show that a refresh is under way")
 }
 
-func TestServer_RefreshEndpoint_KeepsSortOrder(t *testing.T) {
+func TestServer_RefreshEndpoint_KeepsSortOrderAndRepositoryFilter(t *testing.T) {
 	t.Parallel()
 	handler := newTestHandler(t, newTestServer(t, &fakeLister{}))
 
@@ -359,6 +396,8 @@ func TestServer_RefreshEndpoint_KeepsSortOrder(t *testing.T) {
 		{"/refresh?sort=ci&dir=desc", "/?dir=desc&sort=ci"},
 		{"/refresh?sort=bogus", "/"},
 		{"/refresh?sort=ci&dir=asc&next=https://evil.example.com", "/?dir=asc&sort=ci"},
+		{"/refresh?repo=acme%2Fapi&sort=ci&dir=desc", "/?dir=desc&repo=acme%2Fapi&sort=ci"},
+		{"/refresh?repo=//evil.example.com", "/?repo=%2F%2Fevil.example.com"},
 	} {
 		rec := do(t, handler, http.MethodPost, tt.target, "localhost")
 		assert.Equal(t, rec.Code, http.StatusSeeOther, tt.target)

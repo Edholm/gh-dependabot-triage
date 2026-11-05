@@ -56,6 +56,8 @@ type row struct {
 	Repository string
 	Owner      string
 	Name       string
+	// FilterHref is the page limited to this repository.
+	FilterHref string
 	Number     int
 	Title      string
 	// Description is the tooltip of the title link. It is empty when the pull request has no description.
@@ -69,10 +71,10 @@ type row struct {
 	CI          badge
 }
 
-// newRows returns the rows of prs, sorted by o.
-func newRows(now time.Time, prs []ghclient.PullRequest, o order) []row {
+// newRows returns the rows of the pull requests of prs that q shows, sorted by q.
+func newRows(now time.Time, prs []ghclient.PullRequest, q pageQuery) []row {
 	rows := make([]row, 0, len(prs))
-	for _, pr := range sortPullRequests(prs, o) {
+	for _, pr := range sortPullRequests(q.filter(prs), q.order) {
 		owner, name, found := strings.Cut(pr.Repository, "/")
 		if !found {
 			owner, name = "", pr.Repository
@@ -81,6 +83,7 @@ func newRows(now time.Time, prs []ghclient.PullRequest, o order) []row {
 			Repository:  pr.Repository,
 			Owner:       owner,
 			Name:        name,
+			FilterHref:  q.withRepo(pr.Repository).path("/"),
 			Number:      pr.Number,
 			Title:       pr.Title,
 			Description: tooltip(pr.Description),

@@ -88,7 +88,7 @@ func TestNewRows_SplitsRepositoryIntoOwnerAndName(t *testing.T) {
 	rows := newRows(time.Now(), []ghclient.PullRequest{
 		{Repository: "acme/api", Number: 1},
 		{Repository: "no-owner", Number: 2},
-	}, defaultOrder())
+	}, pageQuery{order: defaultOrder()})
 
 	assert.Equal(t, len(rows), 2)
 	assert.DeepEqual(t, []string{rows[0].Repository, rows[0].Owner, rows[0].Name}, []string{"acme/api", "acme", "api"})

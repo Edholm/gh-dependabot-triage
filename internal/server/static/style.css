@@ -147,6 +147,30 @@ tbody tr:hover {
   color: var(--fg);
 }
 
+.repo a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.repo a:hover .name {
+  text-decoration: underline;
+}
+
+.filter {
+  max-width: 1200px;
+  margin: 0 auto 12px;
+  color: var(--muted);
+}
+
+.filter strong {
+  color: var(--fg);
+}
+
+.filter a {
+  margin-left: 8px;
+  color: var(--link);
+}
+
 .title a {
   color: var(--link);
   text-decoration: none;

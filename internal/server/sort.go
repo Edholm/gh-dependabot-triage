@@ -90,25 +90,19 @@ func parseOrder(query url.Values) order {
 	}
 }
 
-// query returns o as a URL query. It is empty for the default order.
-func (o order) query() string {
+// values returns o as URL query values. They are empty for the default order.
+func (o order) values() url.Values {
+	values := url.Values{}
 	if o == defaultOrder() {
-		return ""
+		return values
 	}
 	dir := dirAscending
 	if o.descending {
 		dir = dirDescending
 	}
-	return url.Values{querySort: {string(o.column)}, queryDir: {dir}}.Encode()
-}
-
-// path returns the URL of base that keeps the table sorted by o.
-func (o order) path(base string) string {
-	query := o.query()
-	if query == "" {
-		return base
-	}
-	return base + "?" + query
+	values.Set(querySort, string(o.column))
+	values.Set(queryDir, dir)
+	return values
 }
 
 // clicked returns the order that results from clicking the heading of c.
@@ -117,33 +111,6 @@ func (o order) clicked(c column) order {
 		return order{column: c, descending: !o.descending}
 	}
 	return order{column: c, descending: c.startsDescending()}
-}
-
-// header is a column heading of the table. It links to the table sorted by that column.
-type header struct {
-	Label string
-	Href  string
-	// Sort is the aria-sort value of the heading. It is empty unless the table is sorted by the column.
-	Sort string
-	// Arrow shows the sort direction. It is empty unless the table is sorted by the column.
-	Arrow string
-}
-
-// headers returns the column headings of a table sorted by o.
-func (o order) headers() []header {
-	headers := make([]header, 0, len(columns()))
-	for _, c := range columns() {
-		h := header{Label: c.label(), Href: o.clicked(c).path("/")}
-		switch {
-		case o.column != c:
-		case o.descending:
-			h.Sort, h.Arrow = "descending", "▼"
-		default:
-			h.Sort, h.Arrow = "ascending", "▲"
-		}
-		headers = append(headers, h)
-	}
-	return headers
 }
 
 // sortPullRequests returns a copy of prs sorted by o. Pull requests that are equal in the sorted column keep a stable

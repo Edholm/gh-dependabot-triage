@@ -151,20 +151,25 @@ type pageData struct {
 	Error string
 	// Headers are the column headings, which sort the table when clicked.
 	Headers []header
-	// RefreshAction is where the refresh button posts to. It keeps the sort order of the table.
+	// RefreshAction is where the refresh button posts to. It keeps the sort order and filter of the table.
 	RefreshAction string
+	// Filter is set when the table only shows the pull requests of one repository.
+	Filter *repoFilter
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	current := s.snapshot()
-	o := parseOrder(r.URL.Query())
+	q := parsePageQuery(r.URL.Query())
 	data := pageData{
-		Rows:          newRows(s.now(), current.prs, o),
+		Rows:          newRows(s.now(), current.prs, q),
 		Total:         len(current.prs),
 		Loaded:        !current.fetchedAt.IsZero(),
 		Refreshing:    current.refreshing,
-		Headers:       o.headers(),
-		RefreshAction: o.path("/refresh"),
+		Headers:       q.headers(),
+		RefreshAction: q.path("/refresh"),
+	}
+	if q.repo != "" {
+		data.Filter = &repoFilter{Repository: q.repo, ClearHref: q.withRepo("").path("/")}
 	}
 	if data.Loaded {
 		data.Updated = current.fetchedAt.Format(time.TimeOnly)
@@ -184,8 +189,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	s.requestRefresh()
-	// Rebuilt from the parsed order, never copied from the request, so only a sort order can end up in the redirect.
-	http.Redirect(w, r, parseOrder(r.URL.Query()).path("/"), http.StatusSeeOther)
+	// Rebuilt from the parsed state, never copied from the request, so only a sort order and a repository can end up
+	// in the redirect. Both are query-encoded, so the redirect always stays on this server.
+	//nolint:gosec // The target is "/" plus a query-encoded string, so it cannot point to another host.
+	http.Redirect(w, r, parsePageQuery(r.URL.Query()).path("/"), http.StatusSeeOther)
 }
 
 // requireLoopbackHost rejects requests whose Host header is not a loopback name. This stops DNS-rebinding attacks
