@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -476,6 +477,13 @@ func (q *queue) rebase(
 	}
 	q.set(item, stepRebasing, "")
 	if err := q.merger.UpdateBranch(ctx, item.pr.ID, status.HeadOID); err != nil {
+		if errors.Is(err, ghclient.ErrMissingWorkflowScope) {
+			// The base branch changed a workflow file. No retry helps until the token has the scope.
+			logger.Warn("rebase skipped, token lacks the workflow scope", "error", err)
+			q.set(item, stepFailed, "Base branch changed a workflow file; the token needs the workflow scope "+
+				"(gh auth refresh -s workflow), or rebase the pull request manually")
+			return true
+		}
 		logger.Error("rebase failed", "error", err)
 		q.set(item, stepFailed, err.Error())
 		return true

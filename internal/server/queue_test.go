@@ -257,6 +257,20 @@ func TestQueue_Merge_FailsWhenApprovalFails(t *testing.T) {
 	assert.DeepEqual(t, merger.recorded(), []string{"approve PR_1", "approve PR_2", "merge PR_2 b"})
 }
 
+func TestQueue_Merge_ExplainsMissingWorkflowScope(t *testing.T) {
+	t.Parallel()
+	merger := &fakeMerger{
+		statuses: map[string][]ghclient.Status{"PR_1": {withState(clean("a"), ghclient.MergeStateBehind, ghclient.CheckSuccess)}},
+		failing:  map[string]error{"rebase PR_1 a": fmt.Errorf("rebase: %w", ghclient.ErrMissingWorkflowScope)},
+	}
+	q, _ := startQueue(t, merger)
+
+	assert.NilError(t, q.add(context.Background(), actionMerge, []ghclient.PullRequest{testPullRequest("acme/api", 1)}))
+
+	got := steps(waitIdle(t, q))["acme/api#1"]
+	assert.Assert(t, strings.Contains(got, "gh auth refresh -s workflow"), got)
+}
+
 func TestQueue_Merge_RetriesAFailedMergeOnce(t *testing.T) {
 	t.Parallel()
 	merger := &fakeMerger{

@@ -258,3 +258,13 @@ func TestClient_Mutations(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_UpdateBranch_MissingWorkflowScope(t *testing.T) {
+	t.Parallel()
+	doer := &fakeDoer{errs: []error{errors.New(
+		"GraphQL: refusing to allow an OAuth App to create or update workflow `.github/workflows/ci.yaml` " +
+			"without `workflow` scope (updatePullRequestBranch)",
+	)}}
+	err := ghclient.New(doer).UpdateBranch(context.Background(), "PR_1", "abc")
+	assert.Assert(t, errors.Is(err, ghclient.ErrMissingWorkflowScope), "got %v", err)
+}

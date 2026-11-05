@@ -2,8 +2,14 @@ package ghclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 )
+
+// ErrMissingWorkflowScope is returned when GitHub refuses to update a pull request branch because the update would
+// change a workflow file and the token lacks the workflow scope.
+var ErrMissingWorkflowScope = errors.New("token lacks the workflow scope")
 
 // PullRequestState is whether a pull request is open, closed or merged.
 type PullRequestState string
@@ -114,6 +120,9 @@ func (c *Client) Approve(ctx context.Context, id string) error {
 // branch no longer points to head.
 func (c *Client) UpdateBranch(ctx context.Context, id, head string) error {
 	if err := c.mutate(ctx, updateBranchMutation, map[string]any{"id": id, "head": head}); err != nil {
+		if strings.Contains(err.Error(), "without `workflow` scope") {
+			return fmt.Errorf("rebase pull request %s: %w: %v", id, ErrMissingWorkflowScope, err)
+		}
 		return fmt.Errorf("rebase pull request %s: %v", id, err)
 	}
 	return nil
