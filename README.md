@@ -81,7 +81,8 @@ A pull request fails, and the queue moves on to the next one, when CI fails, it
 has conflicts, it still needs a review after the approval, a merge fails twice,
 or it does not become mergeable within 30 minutes of its last rebase. The island
 lists the queue with the state of each pull request. Pull requests that are
-still waiting can be removed from it.
+still waiting, including those waiting for CI, can be removed from it; one that is being
+approved, rebased or merged cannot.
 
 The queue runs in the server, so it keeps going when you close the page, but it
 stops when you stop the server.

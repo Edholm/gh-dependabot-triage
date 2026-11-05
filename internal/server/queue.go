@@ -111,6 +111,15 @@ type queueItem struct {
 	message string
 	// approved is set once the pull request has been approved, or was approved already.
 	approved bool
+	// canceled is set when the user removed the item while the queue was waiting for it. The queue then stops working
+	// on it and leaves its step alone.
+	canceled bool
+}
+
+// removable reports whether the user can still take a pull request in step s out of the queue. Once the queue is in
+// the middle of approving, rebasing or merging, the call to GitHub cannot be taken back.
+func (s step) removable() bool {
+	return s == stepQueued || s == stepWaiting || s == stepCI
 }
 
 // queue approves pull requests and merges them one at a time per repository: most repositories require pull
@@ -207,15 +216,17 @@ func (q *queue) busyWith(key string) bool {
 	return slices.ContainsFunc(q.items, func(item *queueItem) bool { return item.key == key && !item.step.finished() })
 }
 
-// remove drops the pull request with key from the queue, unless the queue has started working on it. It reports
-// whether the pull request was removed.
+// remove drops the pull request with key from the queue, unless the queue is in the middle of approving, rebasing or
+// merging it. A pull request the queue is waiting for stops being waited for. It reports whether the pull request was
+// removed.
 func (q *queue) remove(key string) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	i := slices.IndexFunc(q.items, func(item *queueItem) bool { return item.key == key && item.step == stepQueued })
+	i := slices.IndexFunc(q.items, func(item *queueItem) bool { return item.key == key && item.step.removable() })
 	if i < 0 {
 		return false
 	}
+	q.items[i].canceled = true
 	q.items = slices.Delete(q.items, i, i+1)
 	return true
 }
@@ -236,11 +247,21 @@ func (q *queue) notifyChanged() {
 	q.mu.Unlock()
 }
 
-// set moves item to step s with message.
-func (q *queue) set(item *queueItem, s step, message string) {
+// set moves item to step s with message. It does nothing, and reports false, if item was removed from the queue.
+func (q *queue) set(item *queueItem, s step, message string) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if item.canceled {
+		return false
+	}
 	item.step, item.message = s, message
+	return true
+}
+
+func (q *queue) isCanceled(item *queueItem) bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return item.canceled
 }
 
 // approveAll approves items one after another.
@@ -345,7 +366,7 @@ func (q *queue) merge(ctx context.Context, item *queueItem) {
 	for {
 		status, err := q.merger.Status(ctx, item.pr.ID)
 		switch {
-		case ctx.Err() != nil:
+		case ctx.Err() != nil || q.isCanceled(item):
 			return
 		case err != nil:
 			m.statusErrors++
@@ -419,6 +440,9 @@ func (q *queue) advance(
 		q.set(item, stepCI, "")
 		return false
 	case status.MergeQueueRequired:
+		if q.isCanceled(item) {
+			return true
+		}
 		if err := q.merger.Enqueue(ctx, item.pr.ID, status.HeadOID); err != nil {
 			var reviewErr *ghclient.ReviewRequiredError
 			if errors.As(err, &reviewErr) {
@@ -445,7 +469,9 @@ func (q *queue) advance(
 	case status.MergeState == ghclient.MergeStateClean ||
 		status.MergeState == ghclient.MergeStateHasHooks ||
 		status.MergeState == ghclient.MergeStateUnstable:
-		q.set(item, stepMerging, "")
+		if !q.set(item, stepMerging, "") {
+			return true
+		}
 		if err := q.merger.Merge(ctx, item.pr.ID, status.HeadOID); err != nil {
 			m.mergeErrors++
 			logger.Warn("merge failed", "error", err)
@@ -482,7 +508,9 @@ func (q *queue) rebase(
 		q.set(item, stepFailed, fmt.Sprintf("Still behind the base branch after %d rebases", maxRebases))
 		return true
 	}
-	q.set(item, stepRebasing, "")
+	if !q.set(item, stepRebasing, "") {
+		return true
+	}
 	if err := q.merger.UpdateBranch(ctx, item.pr.ID, status.HeadOID); err != nil {
 		if errors.Is(err, ghclient.ErrMissingWorkflowScope) {
 			// The base branch changed a workflow file. No retry helps until the token has the scope.
@@ -546,7 +574,7 @@ func (q *queue) view() queueView {
 			Class:      b.Class,
 			Message:    item.message,
 			Finished:   item.step.finished(),
-			Removable:  item.step == stepQueued,
+			Removable:  item.step.removable(),
 		})
 		if !item.step.finished() {
 			v.Busy = true

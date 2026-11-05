@@ -380,6 +380,30 @@ func TestQueue_SkipsPullRequestsItIsWorkingOn(t *testing.T) {
 	assert.Equal(t, len(q.view().Items), 1)
 }
 
+func TestQueue_Remove_StopsWaitingForCI(t *testing.T) {
+	t.Parallel()
+	pr1, pr2 := testPullRequest("acme/api", 1), testPullRequest("acme/api", 2)
+	merger := &fakeMerger{statuses: map[string][]ghclient.Status{
+		"PR_1": {withState(clean("a"), ghclient.MergeStateBlocked, ghclient.CheckPending)},
+		"PR_2": {clean("b")},
+	}}
+	q, _ := startQueue(t, merger)
+
+	assert.NilError(t, q.add(t.Context(), actionMerge, []ghclient.PullRequest{pr1, pr2}))
+	deadline := time.Now().Add(5 * time.Second)
+	for steps(q.view())["acme/api#1"] != "ci" {
+		assert.Assert(t, time.Now().Before(deadline), "never waited for CI")
+		time.Sleep(time.Millisecond)
+	}
+	assert.Assert(t, q.remove("acme/api#1"))
+
+	v := waitIdle(t, q)
+	assert.DeepEqual(t, steps(v), map[string]string{"acme/api#2": "merged"})
+	for _, call := range merger.recorded() {
+		assert.Assert(t, call != "merge PR_1 a", "a removed pull request must not be merged")
+	}
+}
+
 func TestQueue_RemoveAndClear(t *testing.T) {
 	t.Parallel()
 	q := newQueue(slog.New(slog.DiscardHandler), &fakeMerger{}, func() {})
@@ -391,10 +415,12 @@ func TestQueue_RemoveAndClear(t *testing.T) {
 	}
 
 	assert.Assert(t, q.remove("acme/api#1"))
-	assert.Assert(t, !q.remove("acme/api#2"), "a pull request the queue is working on must stay")
+	assert.Assert(t, q.remove("acme/api#2"), "a pull request the queue is only waiting for can be removed")
+	q.items = append(q.items, &queueItem{key: "acme/api#5", step: stepMerging})
+	assert.Assert(t, !q.remove("acme/api#5"), "a pull request the queue is merging must stay")
 	q.clearFinished()
 
-	assert.DeepEqual(t, steps(q.view()), map[string]string{"acme/api#2": "ci"})
+	assert.DeepEqual(t, steps(q.view()), map[string]string{"acme/api#5": "merging"})
 }
 
 // postJSON posts body to target the way the page does, with headers adjusted by modify.
