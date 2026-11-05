@@ -280,3 +280,13 @@ func TestClient_Enqueue_WaitingOnReview(t *testing.T) {
 	assert.Assert(t, errors.As(err, &reviewErr), "got %v", err)
 	assert.Equal(t, reviewErr.Reason, "code owner review from acme/platform")
 }
+
+func TestListPullRequests_Org(t *testing.T) {
+	doer := &fakeDoer{}
+	_, err := ghclient.New(doer, ghclient.WithOrg("acme")).ListPullRequests(context.Background())
+	assert.NilError(t, err)
+	assert.Assert(t, len(doer.calls) > 0)
+	for _, v := range doer.calls {
+		assert.Assert(t, strings.Contains(v["q"].(string), " org:acme"), v["q"])
+	}
+}

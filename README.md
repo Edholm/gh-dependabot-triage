@@ -35,6 +35,7 @@ right away. Stop the server with Ctrl-C.
 | Flag           | Description                                                  |
 | -------------- | ------------------------------------------------------------ |
 | `--port`       | Port to listen on (default: 7826, 0 for a random free port). |
+| `--org`        | Only show pull requests in this organization (or user).      |
 | `--no-browser` | Print the URL instead of opening a browser.                  |
 
 Authentication is taken from `gh`, so run `gh auth login` first if you have not

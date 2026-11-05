@@ -42,6 +42,7 @@ func run(args []string) error {
 
 	flags := flag.NewFlagSet("gh dependabot-triage", flag.ContinueOnError)
 	port := flags.Int("port", defaultPort, "port to listen on; 0 picks a random free port")
+	org := flags.String("org", "", "only show pull requests in this GitHub organization (or user)")
 	noBrowser := flags.Bool("no-browser", false, "do not open the page in a browser")
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -53,7 +54,11 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("create GitHub client (are you logged in? try `gh auth login`): %v", err)
 	}
-	github := ghclient.New(gql)
+	var opts []ghclient.Option
+	if *org != "" {
+		opts = append(opts, ghclient.WithOrg(*org))
+	}
+	github := ghclient.New(gql, opts...)
 	srv, err := server.New(logger, github, github)
 	if err != nil {
 		return err

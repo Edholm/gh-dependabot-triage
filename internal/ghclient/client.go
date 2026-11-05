@@ -68,6 +68,7 @@ type Doer interface {
 type Client struct {
 	doer       Doer
 	retryDelay time.Duration
+	org        string
 }
 
 // Option configures a Client.
@@ -77,6 +78,12 @@ type Option func(*Client)
 // delay grows linearly with each attempt.
 func WithRetryDelay(delay time.Duration) Option {
 	return func(c *Client) { c.retryDelay = delay }
+}
+
+// WithOrg limits the search to pull requests in the repositories of the given organization or user. An empty org
+// searches everywhere.
+func WithOrg(org string) Option {
+	return func(c *Client) { c.org = org }
 }
 
 // New returns a Client that sends its requests through doer.
@@ -95,6 +102,9 @@ func (c *Client) ListPullRequests(ctx context.Context) ([]PullRequest, error) {
 	var result []PullRequest
 	seen := make(map[string]bool)
 	for _, query := range []string{reviewRequestedQuery, reviewedQuery} {
+		if c.org != "" {
+			query += " org:" + c.org
+		}
 		prs, err := c.search(ctx, query)
 		if err != nil {
 			return nil, err
