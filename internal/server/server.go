@@ -149,15 +149,22 @@ type pageData struct {
 	Polling bool
 	// Error is the error of the last fetch, if it failed.
 	Error string
+	// Headers are the column headings, which sort the table when clicked.
+	Headers []header
+	// RefreshAction is where the refresh button posts to. It keeps the sort order of the table.
+	RefreshAction string
 }
 
-func (s *Server) handleIndex(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	current := s.snapshot()
+	o := parseOrder(r.URL.Query())
 	data := pageData{
-		Rows:       newRows(s.now(), current.prs),
-		Total:      len(current.prs),
-		Loaded:     !current.fetchedAt.IsZero(),
-		Refreshing: current.refreshing,
+		Rows:          newRows(s.now(), current.prs, o),
+		Total:         len(current.prs),
+		Loaded:        !current.fetchedAt.IsZero(),
+		Refreshing:    current.refreshing,
+		Headers:       o.headers(),
+		RefreshAction: o.path("/refresh"),
 	}
 	if data.Loaded {
 		data.Updated = current.fetchedAt.Format(time.TimeOnly)
@@ -177,7 +184,8 @@ func (s *Server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	s.requestRefresh()
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	// Rebuilt from the parsed order, never copied from the request, so only a sort order can end up in the redirect.
+	http.Redirect(w, r, parseOrder(r.URL.Query()).path("/"), http.StatusSeeOther)
 }
 
 // requireLoopbackHost rejects requests whose Host header is not a loopback name. This stops DNS-rebinding attacks

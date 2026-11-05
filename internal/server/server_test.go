@@ -142,6 +142,65 @@ func TestServer_Index_RendersSortedRows(t *testing.T) {
 	assert.Assert(t, strings.Contains(body, "&lt;b&gt;left-pad&lt;/b&gt;"))
 }
 
+func TestServer_Index_SortsByRequestedColumn(t *testing.T) {
+	t.Parallel()
+	lister := &fakeLister{prs: []ghclient.PullRequest{
+		{Repository: "acme/a", Number: 1, Title: "failing one", CI: ghclient.CheckFailure},
+		{Repository: "acme/b", Number: 2, Title: "passing one", CI: ghclient.CheckSuccess},
+		{Repository: "acme/c", Number: 3, Title: "running one", CI: ghclient.CheckPending},
+	}}
+	srv := newTestServer(t, lister)
+	assert.NilError(t, srv.Refresh(context.Background()))
+	handler := newTestHandler(t, srv)
+
+	for _, tt := range []struct {
+		target string
+		want   []string
+	}{
+		{"/", []string{"failing one", "passing one", "running one"}},
+		{"/?sort=ci&dir=asc", []string{"passing one", "running one", "failing one"}},
+		{"/?sort=ci&dir=desc", []string{"failing one", "running one", "passing one"}},
+		{"/?sort=bogus&dir=desc", []string{"failing one", "passing one", "running one"}},
+	} {
+		t.Run(tt.target, func(t *testing.T) {
+			t.Parallel()
+			rec := do(t, handler, http.MethodGet, tt.target, "localhost")
+			assert.Equal(t, rec.Code, http.StatusOK)
+			body := rec.Body.String()
+			first, second, third := strings.Index(
+				body,
+				tt.want[0],
+			), strings.Index(
+				body,
+				tt.want[1],
+			), strings.Index(
+				body,
+				tt.want[2],
+			)
+			assert.Assert(t, first < second && second < third, "rows are not in order %v:\n%s", tt.want, body)
+		})
+	}
+}
+
+func TestServer_Index_MarksSortedColumn(t *testing.T) {
+	t.Parallel()
+	srv := newTestServer(t, &fakeLister{prs: []ghclient.PullRequest{{Repository: "acme/a", Number: 1}}})
+	assert.NilError(t, srv.Refresh(context.Background()))
+	handler := newTestHandler(t, srv)
+
+	body := do(t, handler, http.MethodGet, "/?sort=ci&dir=asc", "localhost").Body.String()
+
+	for _, want := range []string{
+		`<th aria-sort="ascending"><a href="/?dir=desc&amp;sort=ci">CI ` +
+			`<span class="arrow" aria-hidden="true">▲</span></a></th>`,
+		`<th><a href="/">Repository</a></th>`,
+		`<form method="post" action="/refresh?dir=asc&amp;sort=ci">`,
+	} {
+		assert.Assert(t, strings.Contains(body, want), "body is missing %q:\n%s", want, body)
+	}
+	assert.Equal(t, strings.Count(body, "aria-sort="), 1, "only the sorted column is marked")
+}
+
 func TestServer_Index_Empty(t *testing.T) {
 	t.Parallel()
 	srv := newTestServer(t, &fakeLister{})
@@ -239,6 +298,24 @@ func TestServer_RefreshEndpoint_QueuesOneRefresh(t *testing.T) {
 
 	assert.Equal(t, len(srv.refreshRequests), 1)
 	assert.Assert(t, strings.Contains(index(t, handler), "Updating…"), "the page must show that a refresh is under way")
+}
+
+func TestServer_RefreshEndpoint_KeepsSortOrder(t *testing.T) {
+	t.Parallel()
+	handler := newTestHandler(t, newTestServer(t, &fakeLister{}))
+
+	for _, tt := range []struct {
+		target string
+		want   string
+	}{
+		{"/refresh?sort=ci&dir=desc", "/?dir=desc&sort=ci"},
+		{"/refresh?sort=bogus", "/"},
+		{"/refresh?sort=ci&dir=asc&next=https://evil.example.com", "/?dir=asc&sort=ci"},
+	} {
+		rec := do(t, handler, http.MethodPost, tt.target, "localhost")
+		assert.Equal(t, rec.Code, http.StatusSeeOther, tt.target)
+		assert.Equal(t, rec.Header().Get("Location"), tt.want, tt.target)
+	}
 }
 
 func TestServer_RejectsNonLoopbackHost(t *testing.T) {

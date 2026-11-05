@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -16,6 +15,27 @@ const (
 	classWarn    = "warn"
 	classNeutral = "neutral"
 	classInfo    = "info"
+)
+
+// Badge labels. The sort order of the review, status and CI columns is defined in terms of them, see sort.go.
+const (
+	labelApproved         = "Approved"
+	labelChangesRequested = "Changes requested"
+	labelReviewRequired   = "Review required"
+	labelReviewNone       = "None"
+
+	labelDraft       = "Draft"
+	labelConflicts   = "Conflicts"
+	labelBehind      = "Behind"
+	labelBlocked     = "Blocked"
+	labelUnstable    = "Unstable"
+	labelReady       = "Ready"
+	labelStatusUnset = "Unknown"
+
+	labelPassing  = "✓ Passing"
+	labelFailing  = "✗ Failing"
+	labelRunning  = "● Running"
+	labelNoChecks = "– No checks"
 )
 
 // badge is a short colored label. The label always carries the meaning, color is only reinforcement.
@@ -41,17 +61,10 @@ type row struct {
 	CI         badge
 }
 
-func newRows(now time.Time, prs []ghclient.PullRequest) []row {
-	sorted := make([]ghclient.PullRequest, len(prs))
-	copy(sorted, prs)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		if sorted[i].Repository != sorted[j].Repository {
-			return sorted[i].Repository < sorted[j].Repository
-		}
-		return sorted[i].Number < sorted[j].Number
-	})
-	rows := make([]row, 0, len(sorted))
-	for _, pr := range sorted {
+// newRows returns the rows of prs, sorted by o.
+func newRows(now time.Time, prs []ghclient.PullRequest, o order) []row {
+	rows := make([]row, 0, len(prs))
+	for _, pr := range sortPullRequests(prs, o) {
 		owner, name, found := strings.Cut(pr.Repository, "/")
 		if !found {
 			owner, name = "", pr.Repository
@@ -81,35 +94,35 @@ func newRows(now time.Time, prs []ghclient.PullRequest) []row {
 func reviewBadge(decision ghclient.ReviewDecision) badge {
 	switch decision {
 	case ghclient.ReviewApproved:
-		return badge{Label: "Approved", Class: classGood}
+		return badge{Label: labelApproved, Class: classGood}
 	case ghclient.ReviewChangesRequested:
-		return badge{Label: "Changes requested", Class: classBad}
+		return badge{Label: labelChangesRequested, Class: classBad}
 	case ghclient.ReviewRequired:
-		return badge{Label: "Review required", Class: classWarn}
+		return badge{Label: labelReviewRequired, Class: classWarn}
 	default:
-		return badge{Label: "None", Class: classNeutral}
+		return badge{Label: labelReviewNone, Class: classNeutral}
 	}
 }
 
 func statusBadge(pr ghclient.PullRequest) badge {
 	if pr.Draft {
-		return badge{Label: "Draft", Class: classNeutral}
+		return badge{Label: labelDraft, Class: classNeutral}
 	}
 	switch pr.MergeState {
 	case ghclient.MergeStateDraft:
-		return badge{Label: "Draft", Class: classNeutral}
+		return badge{Label: labelDraft, Class: classNeutral}
 	case ghclient.MergeStateDirty:
-		return badge{Label: "Conflicts", Class: classBad}
+		return badge{Label: labelConflicts, Class: classBad}
 	case ghclient.MergeStateBehind:
-		return badge{Label: "Behind", Class: classWarn}
+		return badge{Label: labelBehind, Class: classWarn}
 	case ghclient.MergeStateBlocked:
-		return badge{Label: "Blocked", Class: classWarn}
+		return badge{Label: labelBlocked, Class: classWarn}
 	case ghclient.MergeStateUnstable:
-		return badge{Label: "Unstable", Class: classWarn}
+		return badge{Label: labelUnstable, Class: classWarn}
 	case ghclient.MergeStateClean, ghclient.MergeStateHasHooks:
-		return badge{Label: "Ready", Class: classGood}
+		return badge{Label: labelReady, Class: classGood}
 	default:
-		return badge{Label: "Unknown", Class: classNeutral}
+		return badge{Label: labelStatusUnset, Class: classNeutral}
 	}
 }
 
@@ -130,13 +143,13 @@ func extraBadges(pr ghclient.PullRequest) []badge {
 func ciBadge(state ghclient.CheckState) badge {
 	switch state {
 	case ghclient.CheckSuccess:
-		return badge{Label: "✓ Passing", Class: classGood}
+		return badge{Label: labelPassing, Class: classGood}
 	case ghclient.CheckFailure, ghclient.CheckError:
-		return badge{Label: "✗ Failing", Class: classBad}
+		return badge{Label: labelFailing, Class: classBad}
 	case ghclient.CheckPending, ghclient.CheckExpected:
-		return badge{Label: "● Running", Class: classWarn}
+		return badge{Label: labelRunning, Class: classWarn}
 	default:
-		return badge{Label: "– No checks", Class: classNeutral}
+		return badge{Label: labelNoChecks, Class: classNeutral}
 	}
 }
 

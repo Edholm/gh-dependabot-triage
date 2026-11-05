@@ -36,3 +36,11 @@ server with Ctrl-C.
 
 Authentication is taken from `gh`, so run `gh auth login` first if you have not
 already.
+
+## Sorting
+
+Click a column heading to sort by it, and click it again to reverse the order.
+The sort order is kept in the URL, so it survives the automatic reload and the
+Refresh button. Review, status and CI sort from the most ready to merge (for
+example passing CI first), and Age starts with the oldest pull request. Rows
+that are equal in the sorted column stay ordered by repository and number.
