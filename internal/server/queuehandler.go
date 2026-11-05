@@ -12,7 +12,7 @@ import (
 // maxQueueRequestBytes bounds the body of a queue request. It only lists pull requests.
 const maxQueueRequestBytes = 1 << 20
 
-// queueRequest asks the queue to approve or merge pull requests.
+// queueRequest asks the queue to approve, rebase or merge pull requests.
 type queueRequest struct {
 	Action action `json:"action"`
 	// PullRequests are keys of pull requests, see pullRequestKey.
@@ -33,7 +33,7 @@ func (s *Server) handleQueueAdd(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if req.Action != actionApprove && req.Action != actionMerge {
+	if req.Action != actionApprove && req.Action != actionMerge && req.Action != actionRebase {
 		http.Error(w, "unknown action", http.StatusBadRequest)
 		return
 	}

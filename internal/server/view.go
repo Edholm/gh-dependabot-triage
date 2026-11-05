@@ -74,6 +74,8 @@ type row struct {
 	// Passing reports whether the pull request has passing CI and nothing else that obviously stops it from being
 	// merged. The "select passing" button selects these.
 	Passing bool
+	// Behind reports whether the pull request is behind its base branch and can be rebased.
+	Behind bool
 }
 
 // newRows returns the rows of the pull requests of prs that q shows, sorted by q.

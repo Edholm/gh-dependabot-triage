@@ -368,6 +368,32 @@ func TestQueue_Approve(t *testing.T) {
 	assert.Equal(t, q.view().Changes, 1, "the page must learn that it should refresh")
 }
 
+func TestQueue_Rebase(t *testing.T) {
+	t.Parallel()
+	merger := &fakeMerger{
+		statuses: map[string][]ghclient.Status{
+			"PR_1": {withState(clean("a"), ghclient.MergeStateBehind, ghclient.CheckSuccess)},
+			"PR_2": {clean("b")},
+			"PR_3": {withState(clean("c"), ghclient.MergeStateDirty, ghclient.CheckSuccess)},
+		},
+	}
+	q, changed := startQueue(t, merger)
+
+	assert.NilError(t, q.add(context.Background(), actionRebase, []ghclient.PullRequest{
+		testPullRequest("acme/api", 1),
+		testPullRequest("acme/api", 2),
+		testPullRequest("acme/api", 3),
+	}))
+
+	assert.DeepEqual(t, steps(waitIdle(t, q)), map[string]string{
+		"acme/api#1": "rebased",
+		"acme/api#2": "rebased: Not behind the base branch",
+		"acme/api#3": "failed: Conflicts with the base branch",
+	})
+	assert.DeepEqual(t, merger.recorded(), []string{"rebase PR_1 a"})
+	waitChanged(t, changed, 1)
+}
+
 func TestQueue_SkipsPullRequestsItIsWorkingOn(t *testing.T) {
 	t.Parallel()
 	// Without a run loop nothing is worked on, so everything stays queued.

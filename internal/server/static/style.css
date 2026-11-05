@@ -187,6 +187,13 @@ tbody tr:hover {
   text-decoration: underline;
 }
 
+.row-rebase {
+  margin-left: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
 .num {
   color: var(--muted);
 }

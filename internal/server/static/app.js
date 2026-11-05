@@ -97,6 +97,11 @@
       select(rows().map((row) => row.dataset.key), event.target.checked);
       return;
     }
+    const rebase = event.target.closest("[data-rebase]");
+    if (rebase) {
+      enqueue("rebase", [rebase.dataset.rebase]);
+      return;
+    }
     const tool = event.target.closest("[data-select]");
     if (tool) {
       const all = rows();
@@ -105,6 +110,8 @@
         select(all.map((row) => row.dataset.key), true);
       } else if (tool.dataset.select === "passing") {
         select(all.filter((row) => row.hasAttribute("data-passing")).map((row) => row.dataset.key), true);
+      } else if (tool.dataset.select === "behind") {
+        select(all.filter((row) => row.hasAttribute("data-behind")).map((row) => row.dataset.key), true);
       } else if (tool.dataset.select === "failing") {
         select(all.filter((row) => row.dataset.ci === "bad").map((row) => row.dataset.key), true);
       }
@@ -147,8 +154,7 @@
     }
   };
 
-  const enqueue = async (action) => {
-    const keys = selectedKeys();
+  const enqueue = async (action, keys = selectedKeys()) => {
     if (keys.length === 0) {
       return;
     }
@@ -346,6 +352,10 @@ Finish with a short summary of what you did to each pull request.`;
     if (count === 0) {
       return null;
     }
+    const behindKeys = rows()
+      .filter((row) => selected.has(row.dataset.key) && row.hasAttribute("data-behind"))
+      .map((row) => row.dataset.key);
+    const hasBehind = behindKeys.length > 0;
     return el(
       "div",
       { class: "island-bar" },
@@ -375,6 +385,18 @@ Finish with a short summary of what you did to each pull request.`;
           promptDialog
             ? el("button", { type: "button", "aria-label": "Edit the fix prompt", title: "Edit the fix prompt", onclick: editPrompt }, "✎")
             : null,
+        ),
+        el(
+          "button",
+          {
+            type: "button",
+            disabled: sending || !hasBehind,
+            title: hasBehind
+              ? "Rebase the selected pull requests that are behind their base branch"
+              : "None of the selected pull requests are behind their base branch",
+            onclick: () => enqueue("rebase", behindKeys),
+          },
+          "Rebase",
         ),
         el("button", { type: "button", disabled: sending, onclick: () => enqueue("approve") }, "Approve"),
         el(

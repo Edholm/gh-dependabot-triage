@@ -44,6 +44,8 @@ type action string
 const (
 	actionApprove action = "approve"
 	actionMerge   action = "merge"
+	// actionRebase rebases pull requests that are behind their base branch, and does nothing more.
+	actionRebase action = "rebase"
 )
 
 // step is where a pull request is in the queue.
@@ -58,6 +60,7 @@ const (
 	stepMerging   step = "merging"
 	// The steps below are final.
 	stepApproved step = "approved"
+	stepRebased  step = "rebased"
 	stepMerged   step = "merged"
 	stepEnqueued step = "enqueued"
 	stepFailed   step = "failed"
@@ -66,7 +69,7 @@ const (
 // finished reports whether the queue is done with a pull request in step s.
 func (s step) finished() bool {
 	switch s {
-	case stepApproved, stepMerged, stepEnqueued, stepFailed:
+	case stepApproved, stepRebased, stepMerged, stepEnqueued, stepFailed:
 		return true
 	default:
 		return false
@@ -90,6 +93,8 @@ func (s step) badge() badge {
 		return badge{Label: "Merging…", Class: classInfo}
 	case stepApproved:
 		return badge{Label: "Approved", Class: classGood}
+	case stepRebased:
+		return badge{Label: "Rebased", Class: classGood}
 	case stepMerged:
 		return badge{Label: "Merged", Class: classGood}
 	case stepEnqueued:
@@ -101,7 +106,7 @@ func (s step) badge() badge {
 	}
 }
 
-// queueItem is a pull request the user asked the queue to approve or merge. It is guarded by queue.mu.
+// queueItem is a pull request the user asked the queue to approve, rebase or merge. It is guarded by queue.mu.
 type queueItem struct {
 	key    string
 	pr     ghclient.PullRequest
@@ -199,6 +204,10 @@ func (q *queue) add(ctx context.Context, a action, prs []ghclient.PullRequest) e
 	case actionMerge:
 		for _, repo := range repos {
 			tasks = append(tasks, func(ctx context.Context) { q.mergeAll(ctx, repo) })
+		}
+	case actionRebase:
+		if len(added) > 0 {
+			tasks = append(tasks, func(ctx context.Context) { q.rebaseAll(ctx, added) })
 		}
 	}
 	for _, task := range tasks {
@@ -303,6 +312,69 @@ func (q *queue) approve(ctx context.Context, item *queueItem) bool {
 	item.approved, item.message = true, ""
 	q.mu.Unlock()
 	return true
+}
+
+// rebaseAll rebases items one after another. Unlike merging, it does not wait for CI: it only brings the branches up to
+// date.
+func (q *queue) rebaseAll(ctx context.Context, items []*queueItem) {
+	rebased := false
+	for _, item := range items {
+		q.mu.Lock()
+		if item.step != stepQueued {
+			// Removed from the queue in the meantime.
+			q.mu.Unlock()
+			continue
+		}
+		item.step = stepRebasing
+		q.mu.Unlock()
+		if q.rebaseOnce(ctx, item) {
+			rebased = true
+		}
+	}
+	if rebased {
+		q.notifyChanged()
+	}
+}
+
+// rebaseOnce rebases item if it is behind its base branch, and records the outcome. It reports whether the branch was
+// rebased.
+func (q *queue) rebaseOnce(ctx context.Context, item *queueItem) bool {
+	logger := q.logger.With("pull_request", item.key)
+	status, err := q.merger.Status(ctx, item.pr.ID)
+	if err != nil {
+		logger.Warn("status check failed", "error", err)
+		q.set(item, stepFailed, err.Error())
+		return false
+	}
+	switch {
+	case status.State != ghclient.PullRequestOpen:
+		q.set(item, stepFailed, "Not open")
+		return false
+	case status.MergeState == ghclient.MergeStateDirty:
+		q.set(item, stepFailed, "Conflicts with the base branch")
+		return false
+	case status.MergeState != ghclient.MergeStateBehind:
+		q.set(item, stepRebased, "Not behind the base branch")
+		return false
+	}
+	if err := q.merger.UpdateBranch(ctx, item.pr.ID, status.HeadOID); err != nil {
+		logger.Error("rebase failed", "error", err)
+		q.set(item, stepFailed, rebaseFailure(err))
+		return false
+	}
+	logger.Info("rebased onto the base branch")
+	q.set(item, stepRebased, "")
+	return true
+}
+
+// rebaseFailure explains why a rebase failed.
+func rebaseFailure(err error) string {
+	if errors.Is(err, ghclient.ErrMissingWorkflowScope) {
+		// The base branch changed a workflow file. No retry helps until the token has the scope.
+		return "Base branch changed a workflow file; the token needs the workflow scope " +
+			"(gh auth refresh -s workflow), or rebase the pull request manually"
+	}
+	return err.Error()
 }
 
 // mergeAll approves and then merges the pull requests queued for merging in repo, in the order they were queued,
@@ -513,14 +585,12 @@ func (q *queue) rebase(
 	}
 	if err := q.merger.UpdateBranch(ctx, item.pr.ID, status.HeadOID); err != nil {
 		if errors.Is(err, ghclient.ErrMissingWorkflowScope) {
-			// The base branch changed a workflow file. No retry helps until the token has the scope.
 			logger.Warn("rebase skipped, token lacks the workflow scope", "error", err)
-			q.set(item, stepFailed, "Base branch changed a workflow file; the token needs the workflow scope "+
-				"(gh auth refresh -s workflow), or rebase the pull request manually")
+			q.set(item, stepFailed, rebaseFailure(err))
 			return true
 		}
 		logger.Error("rebase failed", "error", err)
-		q.set(item, stepFailed, err.Error())
+		q.set(item, stepFailed, rebaseFailure(err))
 		return true
 	}
 	logger.Info("rebased onto the base branch")

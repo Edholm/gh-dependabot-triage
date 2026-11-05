@@ -32,6 +32,7 @@
     <span>Select</span>
     <button type="button" data-select="passing" title="Select every pull request shown with passing CI">Passing CI</button>
     <button type="button" data-select="failing" title="Select every pull request shown with failing CI">Failing CI</button>
+    <button type="button" data-select="behind" title="Select every pull request shown that is behind its base branch">Behind</button>
     <button type="button" data-select="all">All</button>
     <button type="button" data-select="none">None</button>
   </div>
@@ -47,7 +48,7 @@
     </thead>
     <tbody>
       {{range .Rows}}
-      <tr data-key="{{.Key}}" data-url="{{.URL}}" data-ci="{{.CI.Class}}"{{if .Passing}} data-passing{{end}}>
+      <tr data-key="{{.Key}}" data-url="{{.URL}}" data-ci="{{.CI.Class}}"{{if .Passing}} data-passing{{end}}{{if .Behind}} data-behind{{end}}>
         <td class="select js-only"><input type="checkbox" class="select-pr" value="{{.Key}}" aria-label="Select {{.Key}}"></td>
         <td class="repo"><a href="{{.FilterHref}}" title="Only show pull requests from {{.Repository}}"><span class="owner">{{.Owner}}</span><span class="name">{{.Name}}</span></a></td>
         <td class="title"><a href="{{.URL}}"{{if .Description}} title="{{.Description}}"{{end}} target="_blank" rel="noopener noreferrer"><span class="num">#{{.Number}}</span> {{.Title}}</a></td>
@@ -55,6 +56,7 @@
         <td><span class="badge {{.Review.Class}}">{{.Review.Label}}</span></td>
         <td>
           <span class="badge {{.Status.Class}}">{{.Status.Label}}</span>
+          {{if .Behind}}<button type="button" class="row-rebase js-only" data-rebase="{{.Key}}" title="Rebase {{.Key}} onto its base branch">Rebase</button>{{end}}
           {{range .Extras}}<span class="badge {{.Class}}">{{.Label}}</span>{{end}}
         </td>
         <td><span class="badge {{.CI.Class}}">{{.CI.Label}}</span></td>
