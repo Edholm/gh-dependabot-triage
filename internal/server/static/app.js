@@ -263,7 +263,8 @@ ${linksPlaceholder}
 For each pull request:
 - Check out its branch and find out from the logs of the failing checks why CI fails.
 - Make the smallest change that makes CI pass. Adapt the code to the updated dependency; do not pin, downgrade or revert it.
-- Fold the fix into the Dependabot commit (amend it) instead of adding a commit, so that the pull request stays a single commit, then force-push with --force-with-lease.
+- Fold the fix into the Dependabot commit (amend it) instead of adding a commit, so that the pull request stays a single commit.
+- Rebase the branch onto origin/master (or the repository's default branch, if it is not master), then force-push with --force-with-lease.
 - If the failure is unrelated to the update, or fixing it needs a decision from me, leave the pull request as it is and tell me why.
 
 Finish with a short summary of what you did to each pull request.`;
