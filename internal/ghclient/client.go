@@ -49,6 +49,7 @@ query($q: String!, $first: Int!, $after: String) {
         author { login }
         repository { nameWithOwner }
         reviewDecision
+        viewerLatestReview { state }
         mergeStateStatus
         autoMergeRequest { enabledAt }
         mergeQueueEntry { state position }
@@ -196,8 +197,11 @@ type pullRequestNode struct {
 	Repository struct {
 		NameWithOwner string `json:"nameWithOwner"`
 	} `json:"repository"`
-	ReviewDecision   ReviewDecision `json:"reviewDecision"`
-	MergeStateStatus MergeState     `json:"mergeStateStatus"`
+	ReviewDecision     ReviewDecision `json:"reviewDecision"`
+	ViewerLatestReview *struct {
+		State string `json:"state"`
+	} `json:"viewerLatestReview"`
+	MergeStateStatus MergeState `json:"mergeStateStatus"`
 	AutoMergeRequest *struct {
 		EnabledAt time.Time `json:"enabledAt"`
 	} `json:"autoMergeRequest"`
@@ -240,6 +244,7 @@ func (n pullRequestNode) pullRequest() PullRequest {
 		CreatedAt:      n.CreatedAt,
 		UpdatedAt:      n.UpdatedAt,
 		ReviewDecision: n.ReviewDecision,
+		ViewerApproved: n.ViewerLatestReview != nil && n.ViewerLatestReview.State == "APPROVED",
 		MergeState:     n.MergeStateStatus,
 		AutoMerge:      n.AutoMergeRequest != nil,
 		CI:             n.Commits.ci(),

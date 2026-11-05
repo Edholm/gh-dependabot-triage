@@ -329,7 +329,7 @@ func TestQueue_Merge_FailsWhenBlockedOnReview(t *testing.T) {
 
 	assert.NilError(t, q.add(context.Background(), actionMerge, []ghclient.PullRequest{testPullRequest("acme/api", 1)}))
 
-	assert.DeepEqual(t, steps(waitIdle(t, q)), map[string]string{"acme/api#1": "failed: Blocked: Review required"})
+	assert.DeepEqual(t, steps(waitIdle(t, q)), map[string]string{"acme/api#1": "failed: Blocked: Awaiting others"})
 }
 
 func TestQueue_Merge_GivesUpWaiting(t *testing.T) {

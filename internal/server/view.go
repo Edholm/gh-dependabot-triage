@@ -24,6 +24,7 @@ const (
 	labelApproved         = "Approved"
 	labelChangesRequested = "Changes requested"
 	labelReviewRequired   = "Review required"
+	labelAwaitingOthers   = "Awaiting others"
 	labelReviewNone       = "None"
 
 	labelDraft       = "Draft"
@@ -102,7 +103,7 @@ func newRows(now time.Time, prs []ghclient.PullRequest, q pageQuery) []row {
 				pr.CreatedAt.Format(time.DateTime),
 				pr.UpdatedAt.Format(time.DateTime),
 			),
-			Review:  reviewBadge(pr.ReviewDecision),
+			Review:  reviewBadge(pr.ReviewDecision, pr.ViewerApproved),
 			Status:  statusBadge(pr),
 			Extras:  extraBadges(pr),
 			CI:      ciBadge(pr.CI),
@@ -132,13 +133,18 @@ func tooltip(text string) string {
 	return strings.TrimRightFunc(string([]rune(text)[:maxTooltipRunes]), unicode.IsSpace) + "…"
 }
 
-func reviewBadge(decision ghclient.ReviewDecision) badge {
+// reviewBadge describes the review state. A pull request that still requires a review, but that the viewer has
+// approved already, is waiting for somebody else, which is not something the viewer can act on.
+func reviewBadge(decision ghclient.ReviewDecision, viewerApproved bool) badge {
 	switch decision {
 	case ghclient.ReviewApproved:
 		return badge{Label: labelApproved, Class: classGood}
 	case ghclient.ReviewChangesRequested:
 		return badge{Label: labelChangesRequested, Class: classBad}
 	case ghclient.ReviewRequired:
+		if viewerApproved {
+			return badge{Label: labelAwaitingOthers, Class: classInfo}
+		}
 		return badge{Label: labelReviewRequired, Class: classWarn}
 	default:
 		return badge{Label: labelReviewNone, Class: classNeutral}

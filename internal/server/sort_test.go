@@ -148,7 +148,16 @@ func TestRanksCoverEveryBadge(t *testing.T) {
 	for _, decision := range []ghclient.ReviewDecision{
 		"", ghclient.ReviewApproved, ghclient.ReviewChangesRequested, ghclient.ReviewRequired,
 	} {
-		assert.Assert(t, reviewRank(decision) < 4, "review decision %q is not ranked", decision)
+		for _, viewerApproved := range []bool{false, true} {
+			pr := ghclient.PullRequest{ReviewDecision: decision, ViewerApproved: viewerApproved}
+			assert.Assert(
+				t,
+				reviewRank(pr) < 5,
+				"review decision %q (viewer approved: %v) is not ranked",
+				decision,
+				viewerApproved,
+			)
+		}
 	}
 	for _, state := range []ghclient.MergeState{
 		"", ghclient.MergeStateBehind, ghclient.MergeStateBlocked, ghclient.MergeStateClean, ghclient.MergeStateDirty,

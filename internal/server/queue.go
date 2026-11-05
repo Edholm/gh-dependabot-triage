@@ -297,7 +297,7 @@ func (q *queue) approveAll(ctx context.Context, items []*queueItem) {
 // approve approves item unless it is approved already. It reports whether item is approved, and fails item if it
 // could not be approved.
 func (q *queue) approve(ctx context.Context, item *queueItem) bool {
-	if item.pr.ReviewDecision == ghclient.ReviewApproved {
+	if item.pr.ReviewDecision == ghclient.ReviewApproved || item.pr.ViewerApproved {
 		q.mu.Lock()
 		item.approved, item.message = true, "Already approved"
 		q.mu.Unlock()
@@ -531,8 +531,9 @@ func (q *queue) advance(
 		return true
 	case status.MergeState == ghclient.MergeStateBlocked:
 		switch status.ReviewDecision {
+		// The item was approved before it got here, so a review that is still required is somebody else's.
 		case ghclient.ReviewRequired, ghclient.ReviewChangesRequested:
-			q.set(item, stepFailed, "Blocked: "+reviewBadge(status.ReviewDecision).Label)
+			q.set(item, stepFailed, "Blocked: "+reviewBadge(status.ReviewDecision, true).Label)
 			return true
 		default:
 			q.set(item, stepWaiting, "Blocked by branch protection")

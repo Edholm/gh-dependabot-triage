@@ -63,6 +63,7 @@ func TestClient_ListPullRequests(t *testing.T) {
 	assert.Equal(t, queued.Author, "dependabot")
 	assert.Equal(t, queued.Description, "Bumps example.com/lib from 1.0.0 to 1.1.0.\n\nRelease notes\nFixes a bug.")
 	assert.Equal(t, queued.ReviewDecision, ghclient.ReviewRequired)
+	assert.Assert(t, queued.ViewerApproved)
 	assert.Equal(t, queued.MergeState, ghclient.MergeStateBlocked)
 	assert.Equal(t, queued.CI, ghclient.CheckSuccess)
 	assert.Assert(t, queued.AutoMerge)

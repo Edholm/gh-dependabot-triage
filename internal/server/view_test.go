@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -13,17 +14,19 @@ func TestReviewBadge(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		decision ghclient.ReviewDecision
+		viewer   bool
 		want     badge
 	}{
-		{ghclient.ReviewApproved, badge{"Approved", classGood}},
-		{ghclient.ReviewChangesRequested, badge{"Changes requested", classBad}},
-		{ghclient.ReviewRequired, badge{"Review required", classWarn}},
-		{"", badge{"None", classNeutral}},
+		{ghclient.ReviewApproved, false, badge{"Approved", classGood}},
+		{ghclient.ReviewChangesRequested, false, badge{"Changes requested", classBad}},
+		{ghclient.ReviewRequired, false, badge{"Review required", classWarn}},
+		{ghclient.ReviewRequired, true, badge{"Awaiting others", classInfo}},
+		{"", false, badge{"None", classNeutral}},
 	} {
-		t.Run(string(tt.decision), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/%v", tt.decision, tt.viewer), func(t *testing.T) {
 			t.Parallel()
-			if got := reviewBadge(tt.decision); got != tt.want {
-				t.Errorf("reviewBadge(%q) = %v, want %v", tt.decision, got, tt.want)
+			if got := reviewBadge(tt.decision, tt.viewer); got != tt.want {
+				t.Errorf("reviewBadge(%q, %v) = %v, want %v", tt.decision, tt.viewer, got, tt.want)
 			}
 		})
 	}

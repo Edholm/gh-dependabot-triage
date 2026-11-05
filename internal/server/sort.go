@@ -138,7 +138,7 @@ func compareColumn(c column, a, b ghclient.PullRequest) int {
 		// The older a pull request, the greater its age.
 		return b.CreatedAt.Compare(a.CreatedAt)
 	case columnReview:
-		return cmp.Compare(reviewRank(a.ReviewDecision), reviewRank(b.ReviewDecision))
+		return cmp.Compare(reviewRank(a), reviewRank(b))
 	case columnStatus:
 		return cmp.Compare(statusRank(a), statusRank(b))
 	case columnCI:
@@ -156,12 +156,12 @@ func rank(label string, labels []string) int {
 	return len(labels)
 }
 
-// reviewRank ranks decisions by how close the pull request is to being merged. It follows the badge shown, so what
+// reviewRank ranks review states by how close the pull request is to being merged. It follows the badge shown, so what
 // looks the same sorts the same.
-func reviewRank(decision ghclient.ReviewDecision) int {
+func reviewRank(pr ghclient.PullRequest) int {
 	return rank(
-		reviewBadge(decision).Label,
-		[]string{labelApproved, labelReviewNone, labelReviewRequired, labelChangesRequested},
+		reviewBadge(pr.ReviewDecision, pr.ViewerApproved).Label,
+		[]string{labelApproved, labelAwaitingOthers, labelReviewNone, labelReviewRequired, labelChangesRequested},
 	)
 }
 

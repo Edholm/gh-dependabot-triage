@@ -66,6 +66,9 @@ type PullRequest struct {
 	UpdatedAt   time.Time
 
 	ReviewDecision ReviewDecision
+	// ViewerApproved reports whether the authenticated user's latest review approves the pull request. It can be set
+	// while ReviewDecision is still ReviewRequired, when someone else has to approve as well.
+	ViewerApproved bool
 	MergeState     MergeState
 	// AutoMerge reports whether auto-merge is enabled.
 	AutoMerge bool
