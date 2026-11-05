@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dependabot PRs to review</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/theme.js"></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body data-polling="{{.Polling}}">
@@ -51,5 +52,17 @@
   {{else if not .Error}}
   <p class="empty" role="status">Loading pull requests from GitHub… this can take a few seconds.</p>
   {{end}}
+
+  <footer>
+    <a href="https://github.com/Edholm/gh-dependabot-triage" target="_blank" rel="noopener noreferrer">Edholm/gh-dependabot-triage on GitHub</a>
+    <div class="theme-switcher" role="group" aria-label="Theme" hidden>
+      <span>Theme</span>
+      <span class="options">
+        <button type="button" data-theme="system" aria-pressed="true">System</button>
+        <button type="button" data-theme="light" aria-pressed="false">Light</button>
+        <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+      </span>
+    </div>
+  </footer>
 </body>
 </html>

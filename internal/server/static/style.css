@@ -1,41 +1,32 @@
+/* Each color is light-dark(<light>, <dark>). Without a chosen theme the page follows the system; theme.js sets
+   data-theme on <html> to force one. */
 :root {
-  --bg: #ffffff;
-  --fg: #1f2328;
-  --muted: #656d76;
-  --border: #d0d7de;
-  --row-hover: #f6f8fa;
-  --link: #0969da;
-  --good-bg: #dafbe1;
-  --good-fg: #116329;
-  --bad-bg: #ffebe9;
-  --bad-fg: #82071e;
-  --warn-bg: #fff8c5;
-  --warn-fg: #7d4e00;
-  --info-bg: #ddf4ff;
-  --info-fg: #0550ae;
-  --neutral-bg: #eaeef2;
-  --neutral-fg: #57606a;
+  color-scheme: light dark;
+
+  --bg: light-dark(#ffffff, #0d1117);
+  --fg: light-dark(#1f2328, #e6edf3);
+  --muted: light-dark(#656d76, #8d96a0);
+  --border: light-dark(#d0d7de, #30363d);
+  --row-hover: light-dark(#f6f8fa, #161b22);
+  --link: light-dark(#0969da, #4493f8);
+  --good-bg: light-dark(#dafbe1, #12261e);
+  --good-fg: light-dark(#116329, #56d364);
+  --bad-bg: light-dark(#ffebe9, #2d1214);
+  --bad-fg: light-dark(#82071e, #ff7b72);
+  --warn-bg: light-dark(#fff8c5, #2d2305);
+  --warn-fg: light-dark(#7d4e00, #e3b341);
+  --info-bg: light-dark(#ddf4ff, #0c2d6b);
+  --info-fg: light-dark(#0550ae, #79c0ff);
+  --neutral-bg: light-dark(#eaeef2, #21262d);
+  --neutral-fg: light-dark(#57606a, #9198a1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d1117;
-    --fg: #e6edf3;
-    --muted: #8d96a0;
-    --border: #30363d;
-    --row-hover: #161b22;
-    --link: #4493f8;
-    --good-bg: #12261e;
-    --good-fg: #56d364;
-    --bad-bg: #2d1214;
-    --bad-fg: #ff7b72;
-    --warn-bg: #2d2305;
-    --warn-fg: #e3b341;
-    --info-bg: #0c2d6b;
-    --info-fg: #79c0ff;
-    --neutral-bg: #21262d;
-    --neutral-fg: #9198a1;
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 * {
@@ -219,6 +210,68 @@ tbody tr:hover {
   margin: 48px auto;
   color: var(--muted);
   text-align: center;
+}
+
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  max-width: 1200px;
+  margin: 32px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+footer a {
+  color: inherit;
+}
+
+footer a:hover {
+  color: var(--link);
+}
+
+.theme-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* display above would otherwise override the hidden attribute. */
+.theme-switcher[hidden] {
+  display: none;
+}
+
+.theme-switcher .options {
+  display: inline-flex;
+}
+
+.theme-switcher button {
+  padding: 2px 10px;
+  border-radius: 0;
+  font-size: 12px;
+}
+
+.theme-switcher button + button {
+  margin-left: -1px;
+}
+
+.theme-switcher button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.theme-switcher button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.theme-switcher button[aria-pressed="true"] {
+  position: relative;
+  border-color: var(--link);
+  background: var(--info-bg);
+  color: var(--info-fg);
 }
 
 @media (max-width: 720px) {

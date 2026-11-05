@@ -142,6 +142,28 @@ func TestServer_Index_RendersSortedRows(t *testing.T) {
 	assert.Assert(t, strings.Contains(body, "&lt;b&gt;left-pad&lt;/b&gt;"))
 }
 
+func TestServer_Index_ShowsFooterWithThemeSwitcherAndRepositoryLink(t *testing.T) {
+	t.Parallel()
+	srv := newTestServer(t, &fakeLister{})
+
+	body := index(t, newTestHandler(t, srv))
+
+	for _, want := range []string{
+		`<footer>`,
+		`href="https://github.com/Edholm/gh-dependabot-triage"`,
+		`data-theme="system"`, `data-theme="light"`, `data-theme="dark"`,
+	} {
+		assert.Assert(t, strings.Contains(body, want), "body is missing %q:\n%s", want, body)
+	}
+	// The theme must be applied before the first paint, so its script must not be deferred.
+	assert.Assert(
+		t,
+		strings.Contains(body, `<script src="/static/theme.js"></script>`),
+		"theme.js must not be deferred:\n%s",
+		body,
+	)
+}
+
 func TestServer_Index_ShowsDescriptionOnTitleHover(t *testing.T) {
 	t.Parallel()
 	lister := &fakeLister{prs: []ghclient.PullRequest{
@@ -374,7 +396,7 @@ func TestServer_ServesStaticFiles(t *testing.T) {
 	t.Parallel()
 	handler := newTestHandler(t, newTestServer(t, &fakeLister{}))
 
-	for _, path := range []string{"/static/style.css", "/static/app.js"} {
+	for _, path := range []string{"/static/style.css", "/static/app.js", "/static/theme.js"} {
 		rec := do(t, handler, http.MethodGet, path, "localhost")
 		assert.Equal(t, rec.Code, http.StatusOK, path)
 	}

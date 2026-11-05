@@ -38,6 +38,11 @@ server with Ctrl-C.
 Authentication is taken from `gh`, so run `gh auth login` first if you have not
 already.
 
+## Theme
+
+The footer has a theme switcher: System (the default, follows your operating
+system), Light or Dark. The choice is saved in your browser's local storage.
+
 ## Sorting
 
 Click a column heading to sort by it, and click it again to reverse the order.
