@@ -510,9 +510,9 @@ func TestServer_Index_RendersSelection(t *testing.T) {
 
 	body := index(t, newTestHandler(t, srv))
 
-	assert.Assert(t, strings.Contains(body, `<tr data-key="acme/api#1" data-passing>`), body)
-	assert.Assert(t, strings.Contains(body, `<tr data-key="acme/api#2">`), body)
-	assert.Assert(t, strings.Contains(body, `<tr data-key="acme/api#3">`), body)
+	assert.Assert(t, strings.Contains(body, `data-key="acme/api#1" data-url="`+passing.URL+`" data-ci="good" data-passing>`), body)
+	assert.Assert(t, strings.Contains(body, `data-key="acme/api#2" data-url="`+failing.URL+`" data-ci="bad">`), body)
+	assert.Assert(t, strings.Contains(body, `data-key="acme/api#3" data-url="`+conflicting.URL+`" data-ci="good">`), body)
 	assert.Assert(t, strings.Contains(body, `value="acme/api#1"`), body)
 	assert.Assert(t, strings.Contains(body, `data-select="passing"`), body)
 	assert.Assert(t, strings.Contains(body, `class="island js-only"`), body)

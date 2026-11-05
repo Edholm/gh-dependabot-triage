@@ -216,6 +216,53 @@
 
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+  // linksReport lists the selected pull requests by CI result, in a form that can be handed to an AI agent. The CI
+  // result is the class of the CI badge, see ciBadge in view.go. Groups without pull requests are left out.
+  const linksReport = () => {
+    const chosen = rows().filter((row) => selected.has(row.dataset.key));
+    const groups = [
+      ["PRs with failing CI:", (row) => row.dataset.ci === "bad"],
+      ["PRs that pass CI:", (row) => row.dataset.ci === "good"],
+      ["PRs with CI running or without checks:", (row) => row.dataset.ci !== "bad" && row.dataset.ci !== "good"],
+    ];
+    return groups
+      .map(([heading, matches]) => [heading, ...chosen.filter(matches).map((row) => `* ${row.dataset.url}`)])
+      .filter((lines) => lines.length > 1)
+      .map((lines) => lines.join("\n"))
+      .join("\n");
+  };
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Not a secure context, or permission denied: fall back to the legacy way.
+      const area = el("textarea", { style: "position:fixed;opacity:0" });
+      area.value = text;
+      document.body.append(area);
+      area.select();
+      try {
+        return document.execCommand("copy");
+      } finally {
+        area.remove();
+      }
+    }
+  };
+
+  let copyLabel = "Copy links";
+  let copyTimer = null;
+
+  const copyLinks = async () => {
+    copyLabel = (await copyText(linksReport())) ? "Copied!" : "Copy failed";
+    render();
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => {
+      copyLabel = "Copy links";
+      render();
+    }, 2000);
+  };
+
   const selectionBar = () => {
     const count = selectedKeys().length;
     if (count === 0) {
@@ -226,6 +273,15 @@
       { class: "island-bar" },
       el("span", { class: "count" }, `${plural(count, "pull request")} selected`),
       el("span", { class: "actions" },
+        el(
+          "button",
+          {
+            type: "button",
+            title: "Copy the links of the selected pull requests, grouped by CI result, to hand to an AI agent",
+            onclick: copyLinks,
+          },
+          copyLabel,
+        ),
         el("button", { type: "button", disabled: sending, onclick: () => enqueue("approve") }, "Approve"),
         el(
           "button",
