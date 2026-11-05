@@ -38,6 +38,11 @@ func GoModTidy(ctx context.Context) error {
 	return sg.Command(ctx, "go", "mod", "tidy", "-v").Run()
 }
 
+func GoBuild(ctx context.Context) error {
+	sg.Logger(ctx).Println("building the gh extension binary...")
+	return sg.Command(ctx, "go", "build", "-o", "gh-dependabot-triage", ".").Run()
+}
+
 func GoTest(ctx context.Context) error {
 	sg.Logger(ctx).Println("running Go tests...")
 	return sggo.TestCommand(ctx).Run()

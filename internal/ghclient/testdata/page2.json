@@ -1,0 +1,22 @@
+{
+  "search": {
+    "pageInfo": { "hasNextPage": false, "endCursor": "cursor-2" },
+    "nodes": [
+      {
+        "number": 7,
+        "title": "chore(deps): bump actions/checkout from 4 to 5",
+        "url": "https://github.com/acme/web/pull/7",
+        "isDraft": true,
+        "createdAt": "2026-10-01T08:00:00Z",
+        "updatedAt": "2026-10-02T08:00:00Z",
+        "author": { "login": "dependabot" },
+        "repository": { "nameWithOwner": "acme/web" },
+        "reviewDecision": null,
+        "mergeStateStatus": "UNKNOWN",
+        "autoMergeRequest": null,
+        "mergeQueueEntry": null,
+        "commits": { "nodes": [ { "commit": { "statusCheckRollup": null } } ] }
+      }
+    ]
+  }
+}

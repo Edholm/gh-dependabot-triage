@@ -1,0 +1,7 @@
+# Built extension binary.
+/gh-dependabot-triage
+
+# Sage build artifacts.
+/.sage/bin/
+/.sage/tools/
+/.sage/build/

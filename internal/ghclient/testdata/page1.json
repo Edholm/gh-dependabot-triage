@@ -1,0 +1,52 @@
+{
+  "search": {
+    "pageInfo": { "hasNextPage": true, "endCursor": "cursor-1" },
+    "nodes": [
+      {
+        "number": 12,
+        "title": "build(deps): bump example.com/lib from 1.0.0 to 1.1.0",
+        "url": "https://github.com/acme/api/pull/12",
+        "isDraft": false,
+        "createdAt": "2026-11-03T10:00:00Z",
+        "updatedAt": "2026-11-04T11:30:00Z",
+        "author": { "login": "dependabot" },
+        "repository": { "nameWithOwner": "acme/api" },
+        "reviewDecision": "REVIEW_REQUIRED",
+        "mergeStateStatus": "BLOCKED",
+        "autoMergeRequest": { "enabledAt": "2026-11-04T11:00:00Z" },
+        "mergeQueueEntry": { "state": "QUEUED", "position": 2 },
+        "commits": { "nodes": [ { "commit": { "statusCheckRollup": { "state": "SUCCESS" } } } ] }
+      },
+      {
+        "number": 99,
+        "title": "feat: a human-authored change",
+        "url": "https://github.com/acme/api/pull/99",
+        "isDraft": false,
+        "createdAt": "2026-11-03T10:00:00Z",
+        "updatedAt": "2026-11-03T10:00:00Z",
+        "author": { "login": "octocat" },
+        "repository": { "nameWithOwner": "acme/api" },
+        "reviewDecision": null,
+        "mergeStateStatus": "CLEAN",
+        "autoMergeRequest": null,
+        "mergeQueueEntry": null,
+        "commits": { "nodes": [ { "commit": { "statusCheckRollup": { "state": "SUCCESS" } } } ] }
+      },
+      {
+        "number": 100,
+        "title": "feat: a PR whose author was deleted",
+        "url": "https://github.com/acme/api/pull/100",
+        "isDraft": false,
+        "createdAt": "2026-11-03T10:00:00Z",
+        "updatedAt": "2026-11-03T10:00:00Z",
+        "author": null,
+        "repository": { "nameWithOwner": "acme/api" },
+        "reviewDecision": null,
+        "mergeStateStatus": "CLEAN",
+        "autoMergeRequest": null,
+        "mergeQueueEntry": null,
+        "commits": { "nodes": [] }
+      }
+    ]
+  }
+}

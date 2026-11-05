@@ -67,6 +67,10 @@ format-yaml: $(sagefile)
 git-verify-no-diff: $(sagefile)
 	@$(sagefile) GitVerifyNoDiff
 
+.PHONY: go-build
+go-build: $(sagefile)
+	@$(sagefile) GoBuild
+
 .PHONY: go-format
 go-format: $(sagefile)
 	@$(sagefile) GoFormat

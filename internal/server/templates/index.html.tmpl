@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dependabot PRs to review</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body data-polling="{{.Polling}}">
+  <header>
+    <h1>Dependabot PRs to review</h1>
+    <div class="meta">
+      {{if .Loaded}}<span>{{.Total}} open</span><span>Updated {{.Updated}}</span>{{end}}
+      {{if .Refreshing}}<span class="updating" role="status">Updating…</span>{{end}}
+      <form method="post" action="/refresh"><button type="submit">Refresh</button></form>
+    </div>
+  </header>
+
+  {{if .Error}}
+  <p class="error" role="alert">Could not fetch pull requests from GitHub: {{.Error}}</p>
+  {{end}}
+
+  {{if .Rows}}
+  <table>
+    <thead>
+      <tr>
+        <th>Repository</th>
+        <th>Pull request</th>
+        <th>Age</th>
+        <th>Review</th>
+        <th>Status</th>
+        <th>CI</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Rows}}
+      <tr>
+        <td class="repo" title="{{.Repository}}"><span class="owner">{{.Owner}}</span><span class="name">{{.Name}}</span></td>
+        <td class="title"><a href="{{.URL}}" target="_blank" rel="noopener noreferrer"><span class="num">#{{.Number}}</span> {{.Title}}</a></td>
+        <td class="age" title="{{.AgeTitle}}">{{.Age}}</td>
+        <td><span class="badge {{.Review.Class}}">{{.Review.Label}}</span></td>
+        <td>
+          <span class="badge {{.Status.Class}}">{{.Status.Label}}</span>
+          {{range .Extras}}<span class="badge {{.Class}}">{{.Label}}</span>{{end}}
+        </td>
+        <td><span class="badge {{.CI.Class}}">{{.CI.Label}}</span></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else if .Loaded}}
+  <p class="empty">No Dependabot pull requests are waiting for your review.</p>
+  {{else if not .Error}}
+  <p class="empty" role="status">Loading pull requests from GitHub… this can take a few seconds.</p>
+  {{end}}
+</body>
+</html>
