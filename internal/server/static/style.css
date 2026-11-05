@@ -234,6 +234,10 @@ footer a:hover {
   color: var(--link);
 }
 
+footer .github {
+  display: inline-flex;
+}
+
 .theme-switcher {
   display: inline-flex;
   align-items: center;
