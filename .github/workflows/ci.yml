@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .sage/go.sum
+      # Sage downloads its tools (e.g. golangci-lint) into .sage/tools.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .sage/tools
+            ~/.cache/golangci-lint
+          key: sage-${{ runner.os }}-${{ hashFiles('.sage/go.sum', '.sage/main.go') }}
+          restore-keys: sage-${{ runner.os }}-
+      - run: make go-build
+      - run: make go-test
+      - run: make go-lint
