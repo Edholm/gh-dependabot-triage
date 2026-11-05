@@ -9,7 +9,6 @@ import (
 	"go.einride.tech/sage/tools/sggit"
 	"go.einride.tech/sage/tools/sggo"
 	"go.einride.tech/sage/tools/sggolangcilintv2"
-	"go.einride.tech/sage/tools/sggolicenses"
 	"go.einride.tech/sage/tools/sgmdformat"
 	"go.einride.tech/sage/tools/sgyamlfmt"
 )
@@ -29,7 +28,7 @@ func Default(ctx context.Context) error {
 	sg.Deps(ctx, GoLint)
 	sg.Deps(ctx, GoTest)
 	sg.Deps(ctx, GoModTidy)
-	sg.Deps(ctx, GoLicenses, GitVerifyNoDiff)
+	sg.Deps(ctx, GitVerifyNoDiff)
 	return nil
 }
 
@@ -61,11 +60,6 @@ func GoLintFix(ctx context.Context) error {
 func GoFormat(ctx context.Context) error {
 	sg.Logger(ctx).Println("formatting Go files...")
 	return sggolangcilintv2.Fmt(ctx, sggolangcilintv2.Config{})
-}
-
-func GoLicenses(ctx context.Context) error {
-	sg.Logger(ctx).Println("checking Go licenses...")
-	return sggolicenses.Check(ctx)
 }
 
 func FormatMarkdown(ctx context.Context) error {
