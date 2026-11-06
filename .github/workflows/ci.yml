@@ -24,7 +24,7 @@ jobs:
             go.sum
             .sage/go.sum
       # Sage downloads its tools (e.g. golangci-lint) into .sage/tools.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             .sage/tools
